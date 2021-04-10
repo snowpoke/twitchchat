@@ -4,6 +4,7 @@ use crate::rate_limit::{RateClass, RateLimit};
 use std::{
     collections::{HashMap, VecDeque},
     time::Duration,
+    iter::Iterator,
 };
 
 /// A channel that you are on.
@@ -90,6 +91,10 @@ pub struct Channels {
 impl Channels {
     pub fn is_on(&self, name: &str) -> bool {
         self.map.contains_key(name)
+    }
+
+    pub fn iter_all_joined(&self) -> impl Iterator<Item=String> + '_{
+        self.map.keys().cloned()
     }
 
     pub fn get_mut(&mut self, name: &str) -> Option<&mut Channel> {

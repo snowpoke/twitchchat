@@ -23,6 +23,7 @@ use std::{
     collections::{HashSet, VecDeque},
     pin::Pin,
     task::{Context, Poll},
+    iter::Iterator
 };
 
 /// An asynchronous runner
@@ -131,6 +132,11 @@ impl AsyncRunner {
     /// Check whether you're on this channel
     pub fn is_on_channel(&self, channel: &str) -> bool {
         self.channels.is_on(channel)
+    }
+
+    /// Get list of names of all joined channels.
+    pub fn iter_joined_channels(&self) -> impl Iterator<Item=String> + '_{
+        self.channels.iter_all_joined()
     }
 
     /// Get a specific channel.
