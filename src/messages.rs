@@ -71,6 +71,7 @@ pub use pong::Pong;
 
 mod privmsg;
 pub use privmsg::Privmsg;
+pub use privmsg::Ctcp;
 
 mod reconnect;
 pub use reconnect::Reconnect;
