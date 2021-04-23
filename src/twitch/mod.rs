@@ -6,8 +6,14 @@ pub use capability::Capability;
 mod userconfig;
 pub use userconfig::{UserConfig, UserConfigBuilder, UserConfigError};
 
+pub mod attributes;
+
 mod emotes;
+use attributes::Attribute;
 pub use emotes::Emotes;
+
+mod flags;
+pub use flags::Flag;
 
 mod badge;
 pub use badge::{Badge, BadgeInfo, BadgeKind};

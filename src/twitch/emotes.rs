@@ -1,6 +1,4 @@
-use std::ops::Range;
-
-/**
+/*!
 Emotes are little pictograms used in-line in Twitch messages
 
 They are presented (to the irc connection) in a `id:range1,range2/id2:range1,..` form which marks the byte position that the emote is located.
@@ -10,6 +8,11 @@ They are presented (to the irc connection) in a `id:range1,range2/id2:range1,..`
 
 `"Kappa testing Kappa"` would be `25:0-5,14-19`
 */
+
+use std::ops::Range;
+use crate::twitch::attributes::{RangePosition, SeparatorInfo, Attribute};
+
+/// Emotes.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct Emotes {
@@ -21,38 +24,31 @@ pub struct Emotes {
     pub ranges: Vec<Range<u16>>,
 }
 
-impl Emotes {
-    /// Parse emotes from a string, returning an iterator over each emote
-    pub fn parse(input: &str) -> impl Iterator<Item = Self> + '_ {
-        input.split_terminator('/').filter_map(Self::parse_item)
+impl Attribute<usize> for Emotes {
+    fn new(
+        ranges: impl Iterator<Item = Range<u16>>,
+        mut attributes: impl Iterator<Item = usize>,
+    ) -> Option<Self> {
+        Emotes {
+            id: attributes.next()?, // attributes will only ever have one element
+            ranges: ranges.collect(),
+        }.into()
     }
 
-    /// Parse single emote
-    pub fn parse_item(item: &str) -> Option<Self> {
-        get_parts(item, ':').and_then(|(head, tail)| {
-            let emotes = Self {
-                id: head.parse().ok()?,
-                ranges: get_ranges(tail).collect(),
-            };
-            emotes.into()
-        })
+    fn get_separator_info() -> SeparatorInfo {
+        SeparatorInfo {
+            element_separator: '/',
+            range_attribute_separator: ':',
+            attribute_separator: '\n', //never matches
+            range_separator: ',',
+            range_position: RangePosition::Right,
+        }
     }
-}
 
-#[inline]
-fn get_parts(input: &str, sep: char) -> Option<(&str, &str)> {
-    let mut split = input.split_terminator(sep);
-    (split.next()?, split.next()?).into()
-}
-
-#[inline]
-fn get_ranges(tail: &str) -> impl Iterator<Item = Range<u16>> + '_ {
-    tail.split_terminator(',')
-        .filter_map(|s| get_parts(s, '-'))
-        .filter_map(move |(start, end)| {
-            let (start, end) = (start.parse().ok()?, end.parse().ok()?);
-            Range { start, end }.into()
-        })
+    // emotes are represented as just numbers, so we just use &str::parse
+    fn parse_attribute(input: impl AsRef<str>) -> Option<usize>{
+        input.as_ref().parse::<usize>().ok()
+    }
 }
 
 #[cfg(test)]

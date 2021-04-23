@@ -1,4 +1,5 @@
 use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
+use crate::twitch::attributes::Attribute;
 
 use crate::twitch::{
     parse_badges, parse_badges_iter, parse_emotes, Badge, BadgeInfo, BadgeKind, Color, Emotes,
