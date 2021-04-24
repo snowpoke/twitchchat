@@ -1,8 +1,8 @@
-use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
 use crate::twitch::attributes::Attribute;
+use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
 
 use crate::twitch::{
-    parse_badges, parse_badges_iter, parse_emotes, Badge, BadgeInfo, BadgeKind, Color, Emotes,
+    parse_badges, parse_badges_iter, parse_emotes, Badge, BadgeInfo, BadgeKind, Color, Emote,
 };
 
 /// Some PRIVMSGs are considered 'CTCP' (client-to-client protocol)
@@ -56,11 +56,11 @@ pub struct EmotesIter<'a> {
 }
 
 impl<'a> Iterator for EmotesIter<'a> {
-    type Item = Emotes;
+    type Item = Emote;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(item) = self.items.as_mut()?.next() {
-            Emotes::parse_item(item)
+            Emote::parse_item(item)
         } else {
             None
         }
@@ -156,7 +156,7 @@ impl<'a> Privmsg<'a> {
     }
 
     /// Emotes attached to this message
-    pub fn emotes(&self) -> Vec<Emotes> {
+    pub fn emotes(&self) -> Vec<Emote> {
         self.tags()
             .get("emotes")
             .map(parse_emotes)
