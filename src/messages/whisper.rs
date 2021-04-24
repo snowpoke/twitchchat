@@ -1,5 +1,5 @@
 use crate::twitch::{
-    parse_badges, parse_badges_iter, parse_emotes, Badge, BadgeKind, Color, Emotes,
+    parse_badges, parse_badges_iter, parse_emotes, Badge, BadgeKind, Color, Emote,
 };
 use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
 
@@ -51,7 +51,7 @@ impl<'a> Whisper<'a> {
     }
 
     /// Emotes attached to this message
-    pub fn emotes(&self) -> Vec<Emotes> {
+    pub fn emotes(&self) -> Vec<Emote> {
         self.tags()
             .get("emotes")
             .map(parse_emotes)

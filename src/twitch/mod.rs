@@ -10,7 +10,7 @@ pub mod attributes;
 
 mod emotes;
 use attributes::Attribute;
-pub use emotes::Emotes;
+pub use emotes::Emote;
 
 mod flags;
 pub use flags::Flag;
@@ -23,8 +23,8 @@ pub mod color;
 pub use color::Color;
 
 #[allow(dead_code)]
-pub(crate) fn parse_emotes(input: &str) -> Vec<Emotes> {
-    Emotes::parse(input).collect()
+pub(crate) fn parse_emotes(input: &str) -> Vec<Emote> {
+    Emote::parse(input).collect()
 }
 
 #[allow(dead_code)]
@@ -33,8 +33,8 @@ pub(crate) fn parse_badges(input: &str) -> Vec<Badge<'_>> {
 }
 
 #[allow(dead_code)]
-pub(crate) fn parse_emotes_iter(input: &str) -> impl Iterator<Item = Emotes> + '_ {
-    Emotes::parse(input)
+pub(crate) fn parse_emotes_iter(input: &str) -> impl Iterator<Item = Emote> + '_ {
+    Emote::parse(input)
 }
 
 #[allow(dead_code)]

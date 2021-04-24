@@ -19,8 +19,9 @@
 //! Message: "she hottie" -- Flags: "4-9:S.3"
 //! Message: "LMAO Poki wtf" -- Flags: "0-3:P.6,10-12:P.6"
 
+use crate::twitch::attributes::{split_pair, Attribute, RangePosition, SeparatorInfo};
 use std::ops::Range;
-use crate::twitch::attributes::{RangePosition, SeparatorInfo, Attribute, split_pair};
+use std::str::FromStr;
 
 /// The four possible types of offensive terms recognized by Twitch
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -33,7 +34,9 @@ pub enum ScoreType {
 }
 
 /// A score that was assigned to a term by automod. Like A.6, S.3, etc.
-type Score = (ScoreType, u8);
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
+struct Score(ScoreType, u8);
 
 /// Contains information about a flagged term.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -43,38 +46,41 @@ pub struct Flag {
     scores: Vec<Score>,
 }
 
-impl Attribute<Score> for Flag {
-    fn new(
-        mut ranges: impl Iterator<Item = Range<u16>>,
-        attributes: impl Iterator<Item = Score>,
-    ) -> Option<Self>{
-        Self {
-            range: ranges.next()?,
-            scores: attributes.collect(),
-        }.into()
-    }
-
-    fn get_separator_info() -> SeparatorInfo {
-        SeparatorInfo {
-    element_separator: ',',
-    range_attribute_separator: ':',
-    attribute_separator: '/',
-    range_separator: '\n', // never matches
-    range_position: RangePosition::Left,
-        }
-    }
-
-    fn parse_attribute(input: impl AsRef<str>) -> Option<Score>{
-        let (score_type, score) = split_pair(input, '.')?;
+impl FromStr for Score {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (score_type, score) = split_pair(s, '.').ok_or(())?;
         let score_type = match score_type.as_ref() {
             "A" => ScoreType::Aggressive,
             "I" => ScoreType::Identity,
             "P" => ScoreType::Profanity,
             "S" => ScoreType::Sexual,
-            _ => return None,
+            _ => return Err(()),
         };
 
-        (score_type, score.parse::<u8>().ok()?).into()
+        Ok(Score(score_type, score.parse::<u8>().map_err(|_| ())?))
+    }
+}
+impl Attribute<Score> for Flag {
+    fn new(
+        mut ranges: impl Iterator<Item = Range<u16>>,
+        attributes: impl Iterator<Item = Score>,
+    ) -> Option<Self> {
+        Self {
+            range: ranges.next()?,
+            scores: attributes.collect(),
+        }
+        .into()
+    }
+
+    fn get_separator_info() -> SeparatorInfo {
+        SeparatorInfo {
+            element_separator: ',',
+            range_attribute_separator: ':',
+            attribute_separator: '/',
+            range_separator: '\n', // never matches
+            range_position: RangePosition::Left,
+        }
     }
 }
 
@@ -94,35 +100,35 @@ mod tests {
                 "4-8:P.3",
                 vec![Flag {
                     range: 4..8,
-                    scores: vec![(PROFANE, 3)],
+                    scores: vec![Score(PROFANE, 3)],
                 }],
             ),
             (
                 "9-12:A.6/I.6",
                 vec![Flag {
                     range: 9..12,
-                    scores: vec![(AGGRESSIVE, 6), (IDENTITY, 6)],
+                    scores: vec![Score(AGGRESSIVE, 6), Score(IDENTITY, 6)],
                 }],
             ),
             (
                 "9-10:P.5",
                 vec![Flag {
                     range: 9..10,
-                    scores: vec![(PROFANE, 5)],
+                    scores: vec![Score(PROFANE, 5)],
                 }],
             ),
             (
                 "8-12:A.6",
                 vec![Flag {
                     range: 8..12,
-                    scores: vec![(AGGRESSIVE, 6)],
+                    scores: vec![Score(AGGRESSIVE, 6)],
                 }],
             ),
             (
                 "4-9:S.3",
                 vec![Flag {
                     range: 4..9,
-                    scores: vec![(SEXUAL, 3)],
+                    scores: vec![Score(SEXUAL, 3)],
                 }],
             ),
             (
@@ -130,23 +136,21 @@ mod tests {
                 vec![
                     Flag {
                         range: 0..3,
-                        scores: vec![(PROFANE, 6)],
+                        scores: vec![Score(PROFANE, 6)],
                     },
                     Flag {
                         range: 10..12,
-                        scores: vec![(PROFANE, 6)],
+                        scores: vec![Score(PROFANE, 6)],
                     },
                 ],
             ),
             (
                 "0-3",
-                vec![
-                    Flag {
-                        range: 0..3,
-                        scores: vec![],
-                    },
-                ]
-            )
+                vec![Flag {
+                    range: 0..3,
+                    scores: vec![],
+                }],
+            ),
         ];
 
         for (input, expect) in inputs {

@@ -1,17 +1,24 @@
 //! Helper functions and a trait for data of a structure similar to Emotes or Flag.
 //! Those structures provide additional information about parts of a message, and conveys them using the range that the information applies to.
-use std::ops::Range;
 use std::iter::FilterMap;
-    use std::str::Split;
+use std::ops::Range;
+use std::str::FromStr;
+use std::str::Split;
 
-
-pub(crate) enum RangePosition{
+/// Relative position of the range in an attribute string.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
+pub enum RangePosition {
+    /// Range is left to the attribute.
     Left,
+    /// Range is right to the attribute.
     Right,
-}   
+}
 
 /// We need to supply separators based on which the string will be split apart:
-pub(crate) struct SeparatorInfo {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
+pub struct SeparatorInfo {
     /// Separator between elements.
     pub(crate) element_separator: char,
     /// Separator between range and attribute data.
@@ -24,8 +31,11 @@ pub(crate) struct SeparatorInfo {
     pub(crate) range_position: RangePosition,
 }
 
-
-pub(crate) trait Attribute<T>: Sized{
+/// Trait that applies information stored in a tag that adds attribute information to specific parts of a message. (like emote interpretation)
+pub trait Attribute<T>: Sized
+where
+    T: FromStr,
+{
     /// Given a vector of ranges and attributes, creates an element of itself.
     fn new(
         ranges: impl Iterator<Item = Range<u16>>,
@@ -34,33 +44,37 @@ pub(crate) trait Attribute<T>: Sized{
 
     /// When implementing this attribute, this function gives all necessery information on how to parse the original string.
     fn get_separator_info() -> SeparatorInfo;
-    
-    /// Parses a single attribute (Like an emote, or a score)
-    fn parse_attribute(input: impl AsRef<str>) -> Option<T>;
 
-
-    fn get_element_separator() -> char{
+    /// Returns separator between elements.
+    fn get_element_separator() -> char {
         Self::get_separator_info().element_separator
     }
-    
-    fn get_range_attribute_separator() -> char{
+
+    /// Returns separator between a range and an attribute.
+    fn get_range_attribute_separator() -> char {
         Self::get_separator_info().range_attribute_separator
     }
-    
-    fn get_attribute_separator() -> char{
+
+    /// Returns separator between attributes.
+    fn get_attribute_separator() -> char {
         Self::get_separator_info().attribute_separator
     }
-    
-    fn get_range_separator() -> char{
+
+    /// Returns separator between ranges.
+    fn get_range_separator() -> char {
         Self::get_separator_info().range_separator
     }
 
-    fn get_range_position() -> RangePosition{
+    /// Returns the relative position of the range.
+    fn get_range_position() -> RangePosition {
         Self::get_separator_info().range_position
     }
 
+    /// Parses the range information.
     fn parse_ranges(input: impl AsRef<str>) -> Vec<Range<u16>> {
-        input.as_ref().split(Self::get_range_separator())
+        input
+            .as_ref()
+            .split(Self::get_range_separator())
             .filter_map(|s| split_pair(s, '-'))
             .filter_map(move |(start, end)| {
                 let (start, end) = (start.parse().ok()?, end.parse().ok()?);
@@ -69,13 +83,16 @@ pub(crate) trait Attribute<T>: Sized{
             .collect()
     }
 
-    fn parse_attributes(input: impl AsRef<str>) -> Vec<T>{
-        input.as_ref().split(Self::get_attribute_separator())
-            .filter_map(Self::parse_attribute)
+    /// Parses the attribute information.
+    fn parse_attributes(input: impl AsRef<str>) -> Vec<T> {
+        input
+            .as_ref()
+            .split(Self::get_attribute_separator())
+            .filter_map(|x| T::from_str(x).ok())
             .collect()
     }
 
-    // Parse single emote
+    /// Parses a single attribute.
     fn parse_item(item: &str) -> Option<Self> {
         split_pair(item, Self::get_range_attribute_separator()).and_then(|(left, right)| {
             // ranges are on the side denoted by the Either element
@@ -83,7 +100,10 @@ pub(crate) trait Attribute<T>: Sized{
                 RangePosition::Left => (left, right),
                 RangePosition::Right => (right, left),
             };
-            let (ranges, attributes) = (Self::parse_ranges(ranges), Self::parse_attributes(attributes));
+            let (ranges, attributes) = (
+                Self::parse_ranges(ranges),
+                Self::parse_attributes(attributes),
+            );
             Self::new(ranges.into_iter(), attributes.into_iter())
         })
     }
@@ -91,8 +111,10 @@ pub(crate) trait Attribute<T>: Sized{
     /// Parse is generated based on the functions provided above.
     /// The input type here has to be &str to assure knowledge about the lifetime and ownership.
     #[allow(clippy::type_complexity)]
-    fn parse(input: &str) -> FilterMap<Split<'_, char>, fn(&str) -> Option<Self>>{
-        input.split(Self::get_element_separator()).filter_map(Self::parse_item)
+    fn parse(input: &str) -> FilterMap<Split<'_, char>, fn(&str) -> Option<Self>> {
+        input
+            .split(Self::get_element_separator())
+            .filter_map(Self::parse_item)
     }
 }
 
@@ -100,5 +122,45 @@ pub(crate) trait Attribute<T>: Sized{
 /// If the separator is not found, then full string is first element, second element is an empty string.
 pub(crate) fn split_pair<'a>(input: impl AsRef<str> + 'a, sep: char) -> Option<(String, String)> {
     let mut split = input.as_ref().split(sep);
-    (split.next()?.into(), split.next().unwrap_or_default().into()).into()
+    (
+        split.next()?.into(),
+        split.next().unwrap_or_default().into(),
+    )
+        .into()
+}
+
+/// We can use Attribute::parse as a from_str function for a vector of attributes, but we have to define a custom vector format to do so.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
+pub struct AttributeVec<S: FromStr, T: Attribute<S>>(Vec<T>, std::marker::PhantomData<S>);
+
+impl<S, T> AttributeVec<S, T>
+where
+    S: FromStr,
+    T: Attribute<S>,
+{
+    /// Returns the vector stored in AttributeVec.
+    pub fn take(self) -> Vec<T> {
+        self.0
+    }
+
+    /// Generates an AttributeVec from a vector.
+    pub fn from_vec(vec: Vec<T>) -> Self {
+        Self(vec, std::marker::PhantomData)
+    }
+}
+
+impl<S, T> FromStr for AttributeVec<S, T>
+where
+    S: FromStr,
+    T: Attribute<S>,
+{
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(AttributeVec(
+            <T as Attribute<S>>::parse(s).collect::<Vec<_>>(),
+            std::marker::PhantomData,
+        ))
+    }
 }

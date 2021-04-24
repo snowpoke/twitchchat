@@ -9,13 +9,13 @@ They are presented (to the irc connection) in a `id:range1,range2/id2:range1,..`
 `"Kappa testing Kappa"` would be `25:0-5,14-19`
 */
 
+use crate::twitch::attributes::{Attribute, RangePosition, SeparatorInfo};
 use std::ops::Range;
-use crate::twitch::attributes::{RangePosition, SeparatorInfo, Attribute};
 
 /// Emotes.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
-pub struct Emotes {
+pub struct Emote {
     /// This emote id, e.g. `Kappa = 25`    
     pub id: usize,
     /// A list of [Range] in the message where this emote is found
@@ -24,15 +24,16 @@ pub struct Emotes {
     pub ranges: Vec<Range<u16>>,
 }
 
-impl Attribute<usize> for Emotes {
+impl Attribute<usize> for Emote {
     fn new(
         ranges: impl Iterator<Item = Range<u16>>,
         mut attributes: impl Iterator<Item = usize>,
     ) -> Option<Self> {
-        Emotes {
+        Emote {
             id: attributes.next()?, // attributes will only ever have one element
             ranges: ranges.collect(),
-        }.into()
+        }
+        .into()
     }
 
     fn get_separator_info() -> SeparatorInfo {
@@ -44,11 +45,6 @@ impl Attribute<usize> for Emotes {
             range_position: RangePosition::Right,
         }
     }
-
-    // emotes are represented as just numbers, so we just use &str::parse
-    fn parse_attribute(input: impl AsRef<str>) -> Option<usize>{
-        input.as_ref().parse::<usize>().ok()
-    }
 }
 
 #[cfg(test)]
@@ -59,7 +55,7 @@ mod tests {
     fn parse() {
         macro_rules! emote {
             ($id:expr, $($r:expr),* $(,)?) => {
-                Emotes {
+                Emote {
                     id: $id,
                     ranges: vec![$($r),*]
                 }
@@ -94,7 +90,7 @@ mod tests {
         ];
 
         for (input, expect) in inputs {
-            let emotes = Emotes::parse(input).collect::<Vec<_>>();
+            let emotes = Emote::parse(input).collect::<Vec<_>>();
             assert_eq!(emotes.len(), expect.len());
             assert_eq!(emotes, *expect);
         }

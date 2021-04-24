@@ -1,4 +1,4 @@
-use crate::twitch::{parse_badges, parse_emotes, Badge, BadgeInfo, Color, Emotes};
+use crate::twitch::{parse_badges, parse_emotes, Badge, BadgeInfo, Color, Emote};
 use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
 
 /// Identifies a user's chat settings or properties (e.g., chat color)..
@@ -47,7 +47,7 @@ impl<'a> UserState<'a> {
     }
 
     /// Emotes attached to this message
-    pub fn emotes(&self) -> Vec<Emotes> {
+    pub fn emotes(&self) -> Vec<Emote> {
         self.tags()
             .get("emotes")
             .map(parse_emotes)
