@@ -1,7 +1,8 @@
 use crate::twitch::{
-    parse_badges, parse_badges_iter, parse_emotes, Badge, BadgeKind, Color, Emote,
+    parse_badges, parse_badges_iter, Badge, BadgeKind, Color, Emote, AttributionVec, MsgRange
 };
 use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
+use std::str::FromStr;
 
 /// Message sent by another user to your user (a 'DM')
 #[derive(Clone, PartialEq)]
@@ -51,10 +52,12 @@ impl<'a> Whisper<'a> {
     }
 
     /// Emotes attached to this message
-    pub fn emotes(&self) -> Vec<Emote> {
+    pub fn emotes(&self) -> AttributionVec<usize, MsgRange, Emote> {
         self.tags()
             .get("emotes")
-            .map(parse_emotes)
+            .map(AttributionVec::<_,_,Emote>::from_str)
+            .map(Result::ok)
+            .flatten()
             .unwrap_or_default()
     }
 

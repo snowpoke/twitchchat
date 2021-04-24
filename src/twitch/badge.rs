@@ -4,6 +4,9 @@
 ///
 /// [badges]: Badge
 /// [Unknown]: BadgeKind::Unknown
+
+use derive_more::Constructor;
+/// Describes the kind of badge owned by the user.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
@@ -27,7 +30,7 @@ pub enum BadgeKind<'a> {
     /// Premium badge
     Premium,
     /// VIP badge
-    VIP,
+    Vip,
     /// Partner badge
     Partner,
     /// Unknown badge. Likely a custom badge
@@ -65,7 +68,7 @@ impl<'a> Badge<'a> {
             "staff" => Staff,
             "turbo" => Turbo,
             "premium" => Premium,
-            "vip" => VIP,
+            "vip" => Vip,
             "partner" => Partner,
             badge => Unknown(badge),
         };
@@ -88,9 +91,27 @@ impl<'a> Badge<'a> {
             Staff => "staff",
             Turbo => "turbo",
             Premium => "premium",
-            VIP => "vip",
+            Vip => "vip",
             Partner => "partner",
             Unknown(s) => s,
+        }
+    }
+}
+
+/// An iterator over badges
+#[derive(Debug, Constructor)]
+pub struct BadgesIter<'a> {
+    items: Option<std::str::Split<'a, char>>,
+}
+
+impl<'a> Iterator for BadgesIter<'a> {
+    type Item = Badge<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(item) = self.items.as_mut()?.next() {
+            Badge::parse(item)
+        } else {
+            None
         }
     }
 }
@@ -115,7 +136,7 @@ mod tests {
             ("staff", BadgeKind::Staff),
             ("turbo", BadgeKind::Turbo),
             ("premium", BadgeKind::Premium),
-            ("vip", BadgeKind::VIP),
+            ("vip", BadgeKind::Vip),
             ("partner", BadgeKind::Partner),
             ("unknown", BadgeKind::Unknown("unknown")),
         ];

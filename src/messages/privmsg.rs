@@ -1,9 +1,10 @@
-use crate::twitch::attributes::Attribute;
+use crate::twitch::attributes::{MsgRange, AttributionVec};
 use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
 
 use crate::twitch::{
-    parse_badges, parse_badges_iter, parse_emotes, Badge, BadgeInfo, BadgeKind, Color, Emote,
+    parse_badges, parse_badges_iter,Badge, BadgeInfo, BadgeKind, Color, Emote, BadgesIter
 };
+use std::str::FromStr;
 
 /// Some PRIVMSGs are considered 'CTCP' (client-to-client protocol)
 ///
@@ -31,41 +32,6 @@ pub struct Privmsg<'a> {
     ctcp: Option<MaybeOwnedIndex>,
 }
 
-/// An iterator over badges
-#[derive(Debug)]
-pub struct BadgesIter<'a> {
-    items: Option<std::str::Split<'a, char>>,
-}
-
-impl<'a> Iterator for BadgesIter<'a> {
-    type Item = Badge<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(item) = self.items.as_mut()?.next() {
-            Badge::parse(item)
-        } else {
-            None
-        }
-    }
-}
-
-/// An iterator over emotes
-#[derive(Debug)]
-pub struct EmotesIter<'a> {
-    items: Option<std::str::SplitTerminator<'a, char>>,
-}
-
-impl<'a> Iterator for EmotesIter<'a> {
-    type Item = Emote;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(item) = self.items.as_mut()?.next() {
-            Emote::parse_item(item)
-        } else {
-            None
-        }
-    }
-}
 
 impl<'a> Privmsg<'a> {
     raw!();
@@ -85,17 +51,17 @@ impl<'a> Privmsg<'a> {
 
     /// Iterator alternative to `Privmsg::badges()`
     pub fn iter_badges(&self) -> BadgesIter {
-        BadgesIter {
-            items: self.tags().get("badges").map(|s| s.split(',')),
-        }
+        BadgesIter::new(
+            self.tags().get("badges").map(|s| s.split(',')),
+        )
     }
 
     /// Iterator alternative to `Privmsg::emotes()`
-    pub fn iter_emotes(&self) -> EmotesIter {
-        EmotesIter {
-            items: self.tags().get("emotes").map(|s| s.split_terminator('/')),
-        }
-    }
+    // pub fn iter_emotes(&self) -> EmotesIter {
+    //     EmotesIter::new(
+    //         self.tags().get("emotes").map(|s| s.split_terminator('/'))
+    //     )
+    // }
 
     /// Gets the 'CTCP' kind associated with this message, if any
     pub fn ctcp(&self) -> Option<Ctcp<'_>> {
@@ -156,10 +122,12 @@ impl<'a> Privmsg<'a> {
     }
 
     /// Emotes attached to this message
-    pub fn emotes(&self) -> Vec<Emote> {
+    pub fn emotes(&self) -> AttributionVec<usize, MsgRange, Emote> {
         self.tags()
             .get("emotes")
-            .map(parse_emotes)
+            .map(AttributionVec::<usize, MsgRange, Emote>::from_str)
+            .map(Result::ok) // turn inner Result into Option
+            .flatten()
             .unwrap_or_default()
     }
 
@@ -424,12 +392,12 @@ mod tests {
         }
     }
 
-    #[test]
-    fn privmsg_emotes_iter() {
-        let input = "@badge-info=;badges=broadcaster/1;color=#FF69B4;display-name=museun;emote-only=1;emotes=25:0-4,6-10/81274:12-17;flags=;id=4e160a53-5482-4764-ba28-f224cd59a51f;mod=0;room-id=23196011;subscriber=0;tmi-sent-ts=1601079032426;turbo=0;user-id=23196011;user-type= :museun!museun@museun.tmi.twitch.tv PRIVMSG #museun :Kappa Kappa VoHiYo\r\n";
-        for msg in parse(input).map(|s| s.unwrap()) {
-            let msg = Privmsg::from_irc(msg).unwrap();
-            assert_eq!(msg.iter_emotes().count(), 2);
-        }
-    }
+    // #[test]
+    // fn privmsg_emotes_iter() {
+    //     let input = "@badge-info=;badges=broadcaster/1;color=#FF69B4;display-name=museun;emote-only=1;emotes=25:0-4,6-10/81274:12-17;flags=;id=4e160a53-5482-4764-ba28-f224cd59a51f;mod=0;room-id=23196011;subscriber=0;tmi-sent-ts=1601079032426;turbo=0;user-id=23196011;user-type= :museun!museun@museun.tmi.twitch.tv PRIVMSG #museun :Kappa Kappa VoHiYo\r\n";
+    //     for msg in parse(input).map(|s| s.unwrap()) {
+    //         let msg = Privmsg::from_irc(msg).unwrap();
+    //         assert_eq!(msg.iter_emotes().count(), 2);
+    //     }
+    // }
 }

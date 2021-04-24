@@ -19,9 +19,9 @@
 //! Message: "she hottie" -- Flags: "4-9:S.3"
 //! Message: "LMAO Poki wtf" -- Flags: "0-3:P.6,10-12:P.6"
 
-use crate::twitch::attributes::{split_pair, Attribute, RangePosition, SeparatorInfo};
-use std::ops::Range;
+use crate::twitch::attributes::{split_pair, Attribution, MsgRange, SeparatorInfo};
 use std::str::FromStr;
+use derive_more::Constructor;
 
 /// The four possible types of offensive terms recognized by Twitch
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -36,13 +36,13 @@ pub enum ScoreType {
 /// A score that was assigned to a term by automod. Like A.6, S.3, etc.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
-struct Score(ScoreType, u8);
+pub struct Score(ScoreType, u8);
 
 /// Contains information about a flagged term.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Constructor)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct Flag {
-    range: Range<u16>,
+    range: MsgRange,
     scores: Vec<Score>,
 }
 
@@ -61,25 +61,22 @@ impl FromStr for Score {
         Ok(Score(score_type, score.parse::<u8>().map_err(|_| ())?))
     }
 }
-impl Attribute<Score> for Flag {
+impl Attribution<MsgRange, Score> for Flag {
     fn new(
-        mut ranges: impl Iterator<Item = Range<u16>>,
+        reference: MsgRange,
         attributes: impl Iterator<Item = Score>,
-    ) -> Option<Self> {
+    ) -> Self {
         Self {
-            range: ranges.next()?,
+            range: reference,
             scores: attributes.collect(),
         }
-        .into()
     }
 
     fn get_separator_info() -> SeparatorInfo {
         SeparatorInfo {
-            element_separator: ',',
+            attribution_separator: ',',
             range_attribute_separator: ':',
             attribute_separator: '/',
-            range_separator: '\n', // never matches
-            range_position: RangePosition::Left,
         }
     }
 }
@@ -87,6 +84,7 @@ impl Attribute<Score> for Flag {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::twitch::AttributionVec;
 
     const AGGRESSIVE: ScoreType = ScoreType::Aggressive;
     const IDENTITY: ScoreType = ScoreType::Identity;
@@ -98,65 +96,66 @@ mod tests {
         let inputs = &[
             (
                 "4-8:P.3",
-                vec![Flag {
-                    range: 4..8,
-                    scores: vec![Score(PROFANE, 3)],
-                }],
+                vec![Flag::new (
+                    (4..8).into(),
+                     vec![Score(PROFANE, 3)],
+                )],
             ),
             (
                 "9-12:A.6/I.6",
-                vec![Flag {
-                    range: 9..12,
-                    scores: vec![Score(AGGRESSIVE, 6), Score(IDENTITY, 6)],
-                }],
+                vec![Flag::new (
+                    (9..12).into(),
+                     vec![Score(AGGRESSIVE, 6), Score(IDENTITY, 6)],
+                )],
             ),
             (
                 "9-10:P.5",
-                vec![Flag {
-                    range: 9..10,
-                    scores: vec![Score(PROFANE, 5)],
-                }],
+                vec![Flag::new (
+                    (9..10).into(),
+                     vec![Score(PROFANE, 5)],
+                )],
             ),
             (
                 "8-12:A.6",
-                vec![Flag {
-                    range: 8..12,
-                    scores: vec![Score(AGGRESSIVE, 6)],
-                }],
+                vec![Flag::new (
+                    (8..12).into(),
+                     vec![Score(AGGRESSIVE, 6)],
+                )],
             ),
             (
                 "4-9:S.3",
-                vec![Flag {
-                    range: 4..9,
-                    scores: vec![Score(SEXUAL, 3)],
-                }],
+                vec![Flag::new (
+                    (4..9).into(),
+                     vec![Score(SEXUAL, 3)],
+                )],
             ),
             (
                 "0-3:P.6,10-12:P.6",
                 vec![
-                    Flag {
-                        range: 0..3,
-                        scores: vec![Score(PROFANE, 6)],
-                    },
-                    Flag {
-                        range: 10..12,
-                        scores: vec![Score(PROFANE, 6)],
-                    },
+                    Flag::new (
+                        (0..3).into(),
+                         vec![Score(PROFANE, 6)],
+            ),
+                    Flag::new (
+                        (10..12).into(),
+                         vec![Score(PROFANE, 6)],
+            ),
                 ],
             ),
             (
                 "0-3",
-                vec![Flag {
-                    range: 0..3,
-                    scores: vec![],
-                }],
+                vec![Flag::new (
+                    (0..3).into(),
+                     vec![],
+            )],
             ),
         ];
 
         for (input, expect) in inputs {
-            let flags = Flag::parse(input).collect::<Vec<_>>();
+            let flags = AttributionVec::<_,_,Flag>::from_str(input).unwrap();
+
             assert_eq!(flags.len(), flags.len());
-            assert_eq!(flags, *expect);
+            assert_eq!(*flags, *expect);
         }
     }
 }

@@ -1,5 +1,7 @@
-use crate::twitch::{parse_badges, parse_emotes, Badge, BadgeInfo, Color, Emote};
+use crate::twitch::{parse_badges, Badge, BadgeInfo, Color, Emote, AttributionVec, MsgRange};
 use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
+use std::str::FromStr;
+
 
 /// Identifies a user's chat settings or properties (e.g., chat color)..
 #[derive(Clone, PartialEq)]
@@ -47,10 +49,12 @@ impl<'a> UserState<'a> {
     }
 
     /// Emotes attached to this message
-    pub fn emotes(&self) -> Vec<Emote> {
+    pub fn emotes(&self) -> AttributionVec<usize, MsgRange, Emote> {
         self.tags()
             .get("emotes")
-            .map(parse_emotes)
+            .map(AttributionVec::<_, _, Emote>::from_str)
+            .map(Result::ok)
+            .flatten()
             .unwrap_or_default()
     }
 

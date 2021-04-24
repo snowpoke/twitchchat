@@ -9,11 +9,10 @@ They are presented (to the irc connection) in a `id:range1,range2/id2:range1,..`
 `"Kappa testing Kappa"` would be `25:0-5,14-19`
 */
 
-use crate::twitch::attributes::{Attribute, RangePosition, SeparatorInfo};
-use std::ops::Range;
+use crate::twitch::attributes::{Attribution, SeparatorInfo, MsgRange};
 
 /// Emotes.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct Emote {
     /// This emote id, e.g. `Kappa = 25`    
@@ -21,35 +20,61 @@ pub struct Emote {
     /// A list of [Range] in the message where this emote is found
     ///
     /// [Range]: https://doc.rust-lang.org/std/ops/struct.Range.html
-    pub ranges: Vec<Range<u16>>,
+    pub ranges: Vec<MsgRange>,
 }
 
-impl Attribute<usize> for Emote {
+impl Attribution<usize, MsgRange> for Emote {
     fn new(
-        ranges: impl Iterator<Item = Range<u16>>,
-        mut attributes: impl Iterator<Item = usize>,
-    ) -> Option<Self> {
-        Emote {
-            id: attributes.next()?, // attributes will only ever have one element
-            ranges: ranges.collect(),
+        reference: usize,
+        attributes: impl Iterator<Item = MsgRange>,
+    ) -> Self {
+        Self {
+            id: reference,
+            ranges: attributes.collect(),
         }
-        .into()
     }
 
     fn get_separator_info() -> SeparatorInfo {
         SeparatorInfo {
-            element_separator: '/',
+            attribution_separator: '/',
             range_attribute_separator: ':',
-            attribute_separator: '\n', //never matches
-            range_separator: ',',
-            range_position: RangePosition::Right,
+            attribute_separator: ',', 
         }
     }
 }
 
+
+/// An iterator over emotes
+// #[derive(Debug, Constructor)]
+// pub struct EmotesIter<'a> {
+//     items: Option<std::str::SplitTerminator<'a, char>>,
+// }
+
+// impl<'a> Iterator for EmotesIter<'a> {
+//     type Item = Emote;
+
+//     fn next(&mut self) -> Option<Self::Item> {
+//         if let Some(item) = self.items.as_mut()?.next() {
+//             Emote::parse_item(item)
+//         } else {
+//             None
+//         }
+//     }
+// }
+
+// /// Parse emotes into iterator.
+// #[allow(dead_code)]
+// pub fn parse_emotes_iter(input: &str) -> impl Iterator<Item = Emote> + '_ {
+//     Emote::parse(input)
+// }
+
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::twitch::AttributionVec;
+    use std::str::FromStr;
 
     #[test]
     fn parse() {
@@ -57,7 +82,7 @@ mod tests {
             ($id:expr, $($r:expr),* $(,)?) => {
                 Emote {
                     id: $id,
-                    ranges: vec![$($r),*]
+                    ranges: vec![$($r.into()),*]
                 }
             };
         }
@@ -90,9 +115,9 @@ mod tests {
         ];
 
         for (input, expect) in inputs {
-            let emotes = Emote::parse(input).collect::<Vec<_>>();
+            let emotes = AttributionVec::<_,_,Emote>::from_str(input).unwrap();
             assert_eq!(emotes.len(), expect.len());
-            assert_eq!(emotes, *expect);
+            assert_eq!(*emotes, *expect);
         }
     }
 }
