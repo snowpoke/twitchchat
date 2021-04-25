@@ -143,7 +143,7 @@ impl<'a> Privmsg<'a> {
 
     /// Whether the user sending this message was a vip
     pub fn is_vip(&self) -> bool {
-        self.contains_badge(BadgeKind::Broadcaster)
+        self.contains_badge(BadgeKind::Vip)
     }
 
     /// Whether the user sending this message was a susbcriber
