@@ -19,9 +19,9 @@
 //! Message: "she hottie" -- Flags: "4-9:S.3"
 //! Message: "LMAO Poki wtf" -- Flags: "0-3:P.6,10-12:P.6"
 
-use crate::twitch::attributes::{split_pair, Attribution, MsgRange, SeparatorInfo, AttributionVec};
-use std::str::FromStr;
+use crate::twitch::attributes::{split_pair, Attribution, AttributionVec, MsgRange, SeparatorInfo};
 use derive_more::Constructor;
+use std::str::FromStr;
 
 /// The four possible types of offensive terms recognized by Twitch
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -62,10 +62,7 @@ impl FromStr for Score {
     }
 }
 impl Attribution<MsgRange, Score> for Flag {
-    fn new(
-        reference: MsgRange,
-        attributes: impl Iterator<Item = Score>,
-    ) -> Self {
+    fn new(reference: MsgRange, attributes: impl Iterator<Item = Score>) -> Self {
         Self {
             range: reference,
             scores: attributes.collect(),
@@ -107,59 +104,35 @@ mod tests {
         let inputs = &[
             (
                 "4-8:P.3",
-                vec![Flag::new (
-                    (4..8).into(),
-                     vec![Score(PROFANE, 3)],
-                )],
+                vec![Flag::new((4..8).into(), vec![Score(PROFANE, 3)])],
             ),
             (
                 "9-12:A.6/I.6",
-                vec![Flag::new (
+                vec![Flag::new(
                     (9..12).into(),
-                     vec![Score(AGGRESSIVE, 6), Score(IDENTITY, 6)],
+                    vec![Score(AGGRESSIVE, 6), Score(IDENTITY, 6)],
                 )],
             ),
             (
                 "9-10:P.5",
-                vec![Flag::new (
-                    (9..10).into(),
-                     vec![Score(PROFANE, 5)],
-                )],
+                vec![Flag::new((9..10).into(), vec![Score(PROFANE, 5)])],
             ),
             (
                 "8-12:A.6",
-                vec![Flag::new (
-                    (8..12).into(),
-                     vec![Score(AGGRESSIVE, 6)],
-                )],
+                vec![Flag::new((8..12).into(), vec![Score(AGGRESSIVE, 6)])],
             ),
             (
                 "4-9:S.3",
-                vec![Flag::new (
-                    (4..9).into(),
-                     vec![Score(SEXUAL, 3)],
-                )],
+                vec![Flag::new((4..9).into(), vec![Score(SEXUAL, 3)])],
             ),
             (
                 "0-3:P.6,10-12:P.6",
                 vec![
-                    Flag::new (
-                        (0..3).into(),
-                         vec![Score(PROFANE, 6)],
-            ),
-                    Flag::new (
-                        (10..12).into(),
-                         vec![Score(PROFANE, 6)],
-            ),
+                    Flag::new((0..3).into(), vec![Score(PROFANE, 6)]),
+                    Flag::new((10..12).into(), vec![Score(PROFANE, 6)]),
                 ],
             ),
-            (
-                "0-3",
-                vec![Flag::new (
-                    (0..3).into(),
-                     vec![],
-            )],
-            ),
+            ("0-3", vec![Flag::new((0..3).into(), vec![])]),
         ];
 
         for (input, expect) in inputs {

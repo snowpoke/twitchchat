@@ -1,5 +1,43 @@
+use crate::maybe_owned::IntoOwned;
 use crate::{irc::TagIndices, MaybeOwned};
-use std::{borrow::Borrow, str::FromStr};
+use derive_more::Error;
+use derive_new::new;
+use getset::Getters;
+use std::fmt;
+use std::fmt::Debug;
+use std::{borrow::Borrow, str::FromStr}; // can't use derive_more here because it can't deal with the phantom data
+
+/// Error that occurs after we fail to parse a tag into its expected type.
+#[derive(Error, Getters, new)]
+#[getset(get = "pub")]
+pub struct TagParsingError<T>
+where
+    T: FromStr,
+    <T as FromStr>::Err: Debug,
+{
+    /// Name of the tag.
+    tag_name: String,
+    /// Unparsed stored value.
+    raw_value: String,
+    /// Original error returned by the parser.
+    source_error: <T as FromStr>::Err, // this is not std::error::Error
+    _phantom_data: std::marker::PhantomData<T>, // we need type T for Debug::fmt
+}
+
+impl<T> Debug for TagParsingError<T>
+where
+    T: FromStr,
+    <T as FromStr>::Err: Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Parsing of tag '{}' with raw value '{}' as an element of type '{}' failed. Source error: {:?}", self.raw_value(),
+self.tag_name(),
+std::any::type_name::<T>(),
+self.source_error())
+    }
+}
+
+pub type ParsedTag<T> = Result<T, TagParsingError<T>>;
 
 /// Tags are IRCv3 message tags. Twitch uses them extensively.
 ///
@@ -12,8 +50,8 @@ pub struct Tags<'a> {
     pub(crate) indices: &'a TagIndices,
 }
 
-impl<'a> std::fmt::Debug for Tags<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<'a> Debug for Tags<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         f.debug_map().entries(self.iter()).finish()
     }
 }
@@ -61,9 +99,10 @@ impl<'a> Tags<'a> {
         self.indices.get(key.borrow())
     }
 
-    /** Tries to get the tag as a parsable [std::str::FromStr] type.
+    /**
+     * Tries to get the tag as a parsable [std::str::FromStr] type.
 
-    This returns None if it cannot parse, or cannot find the tag
+    This returns None if it cannot find the tag, or Some(Err(_)) with an error of type TagParsingError if it cannot parse the error.
 
     ```rust
     # use twitchchat::{irc::{TagIndices, Tags}, maybe_owned::MaybeOwned};
@@ -72,35 +111,39 @@ impl<'a> Tags<'a> {
     let tags = Tags::from_data_indices(&input, &indices);
 
     // 'foo' can be parsed as a usize
-    let answer: usize = tags.get_parsed("foo").unwrap();
+    let answer: usize = tags.get_parsed("foo").unwrap().unwrap();
     assert_eq!(answer, 42);
 
     // 'foo' can be parsed a String (this shows how to use this with a 'turbofish')
     assert_eq!(
-        tags.get_parsed::<_, String>("foo").unwrap(),
+        tags.get_parsed::<_, String>("foo").unwrap().unwrap(),
         "42".to_string()
     );
 
     // 'foo' cannot be parsed as a bool
-    assert!(tags.get_parsed::<_, bool>("foo").is_none());
+    assert!(tags.get_parsed::<_, bool>("foo").unwrap().is_err());
+
+    // 'bar' does not exist
+    assert!(tags.get_parsed::<_,u32>("bar").is_none());
 
     // a non-std type with a FromStr impl
     # use twitchchat::twitch::color::*;
-    let color: Color = tags.get_parsed("color").unwrap();
+    let color: Color = tags.get_parsed("color").unwrap().unwrap();
     assert_eq!(color.rgb, RGB(0x1E, 0x90, 0xFF));
     ```
     */
-    pub fn get_parsed<K, E>(&self, key: &K) -> Option<E>
+    pub fn get_parsed<K, E>(&self, key: &K) -> Option<ParsedTag<E>>
     where
         K: ?Sized + Borrow<str>,
         E: FromStr,
+        <E as FromStr>::Err: Debug,
     {
-        self.get_unescaped(key)
-            .as_deref()
-            .map(FromStr::from_str)
-            .transpose()
-            .ok()
-            .flatten()
+        let value = self.get_unescaped(key)?;
+        <E as FromStr>::from_str(&value)
+            .map_err(|err| {
+                TagParsingError::<E>::new(key.borrow().into(), value.into_owned().to_string(), err)
+            })
+            .into()
     }
 
     /** Tries to get the tag as a bool.
@@ -172,8 +215,8 @@ pub struct TagsIter<'a> {
     pos: usize,
 }
 
-impl<'a> std::fmt::Debug for TagsIter<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<'a> Debug for TagsIter<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("TagsIter").finish()
     }
 }
@@ -347,12 +390,12 @@ mod tests {
         let indices = TagIndices::build_indices(&*input).unwrap();
 
         let tags = Tags::from_data_indices(&input, &indices);
-        assert_eq!(tags.get_parsed::<_, usize>("foo").unwrap(), 42);
+        assert_eq!(tags.get_parsed::<_, usize>("foo").unwrap().unwrap(), 42);
         assert_eq!(
-            tags.get_parsed::<_, String>("foo").unwrap(),
+            tags.get_parsed::<_, String>("foo").unwrap().unwrap(),
             "42".to_string()
         );
-        assert!(tags.get_parsed::<_, bool>("foo").is_none());
+        assert!(tags.get_parsed::<_, bool>("foo").unwrap().is_err());
 
         #[derive(Debug)]
         struct Badges(std::collections::HashMap<String, usize>);
@@ -371,7 +414,7 @@ mod tests {
             }
         }
 
-        let badges = tags.get_parsed::<_, Badges>("badges").unwrap();
+        let badges = tags.get_parsed::<_, Badges>("badges").unwrap().unwrap();
         assert_eq!(*badges.0.get("subscriber").unwrap(), 6);
         assert_eq!(*badges.0.get("broadcaster").unwrap(), 1);
     }

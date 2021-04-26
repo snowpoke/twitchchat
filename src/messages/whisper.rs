@@ -1,4 +1,5 @@
-use crate::twitch::{Color, AttributionVec, Attribution, BadgeVec, EmoteVec, FlagVec, Badge};
+use crate::irc::tags::ParsedTag;
+use crate::twitch::{Attribution, AttributionVec, Badge, BadgeVec, Color, EmoteVec, FlagVec};
 use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
 use std::str::FromStr;
 
@@ -24,21 +25,28 @@ impl<'a> Whisper<'a> {
     );
 
     /// The color of the user who sent this message, if set
-    pub fn color(&self) -> Option<Color> {
+    pub fn color(&self) -> Option<ParsedTag<Color>> {
         self.tags().get_parsed("color")
     }
 
-            /// Helper function to return information that can be parsed as AttributionVec. (copied from Privmsg)
-            fn tag_to_attribution_vec<Ref, Attr, T>(&'a self, tag: impl AsRef<str>) -> AttributionVec<Ref, Attr, T> 
-            where
-            Ref: FromStr,
-            Attr: FromStr,
-            T: Attribution<Ref, Attr>,{
-                self.tags().get(tag.as_ref()).map(AttributionVec::<Ref,Attr,T>::from_str)
-                .map(Result::ok).flatten().unwrap_or_else(|| vec![].into())
-            }
+    /// Helper function to return information that can be parsed as AttributionVec. (copied from Privmsg)
+    fn tag_to_attribution_vec<Ref, Attr, T>(
+        &'a self,
+        tag: impl AsRef<str>,
+    ) -> AttributionVec<Ref, Attr, T>
+    where
+        Ref: FromStr,
+        Attr: FromStr,
+        T: Attribution<Ref, Attr>,
+    {
+        self.tags()
+            .get(tag.as_ref())
+            .map(AttributionVec::<Ref, Attr, T>::from_str)
+            .map(Result::ok)
+            .flatten()
+            .unwrap_or_else(|| vec![].into())
+    }
 
-            
     /// Returns the display name of the user, if set.
     ///
     /// Users can changed the casing and encoding of their names, if they choose
@@ -62,7 +70,6 @@ impl<'a> Whisper<'a> {
         self.tag_to_attribution_vec("badges")
     }
 
-
     /// Emotes attached to this message
     pub fn emotes(&self) -> EmoteVec {
         self.tag_to_attribution_vec("emotes")
@@ -72,36 +79,34 @@ impl<'a> Whisper<'a> {
     pub fn flags(&self) -> FlagVec {
         self.tag_to_attribution_vec("flags")
     }
-    
-        /// Whether the user sending this message was a staff member
-        pub fn is_staff(&self) -> bool {
-            self.any_badge(Badge::is_staff)
-        }
-    
-        /// Whether the user sending this message had turbo
-        pub fn is_turbo(&self) -> bool {
-            self.any_badge(Badge::is_turbo)
-        }
-    
-        /// Whether the user sending this message was a global moderator
-        pub fn is_global_moderator(&self) -> bool {
-            self.any_badge(Badge::is_global_mod)
-        }
-    
-        /// Helper function that checks if any badge fulfills a specific requirement. Intended to be used with Badge::is_variant functions.
-        fn any_badge(&self, is_badge_fn: impl Fn(&Badge) -> bool) -> bool {
-            self.badges()
-                .iter()
-                .any(is_badge_fn)
-        }
+
+    /// Whether the user sending this message was a staff member
+    pub fn is_staff(&self) -> bool {
+        self.any_badge(Badge::is_staff)
+    }
+
+    /// Whether the user sending this message had turbo
+    pub fn is_turbo(&self) -> bool {
+        self.any_badge(Badge::is_turbo)
+    }
+
+    /// Whether the user sending this message was a global moderator
+    pub fn is_global_moderator(&self) -> bool {
+        self.any_badge(Badge::is_global_mod)
+    }
+
+    /// Helper function that checks if any badge fulfills a specific requirement. Intended to be used with Badge::is_variant functions.
+    fn any_badge(&self, is_badge_fn: impl Fn(&Badge) -> bool) -> bool {
+        self.badges().iter().any(is_badge_fn)
+    }
 
     /// The timestamp of when this message was received by Twitch
-    pub fn tmi_sent_ts(&self) -> Option<u64> {
+    pub fn tmi_sent_ts(&self) -> Option<ParsedTag<u64>> {
         self.tags().get_parsed("tmi-sent-ts")
     }
 
     /// The id of the user who sent this message
-    pub fn user_id(&self) -> Option<u64> {
+    pub fn user_id(&self) -> Option<ParsedTag<u64>> {
         self.tags().get_parsed("user-id")
     }
 }

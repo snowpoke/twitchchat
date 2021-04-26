@@ -1,12 +1,12 @@
 //! Traits and Structs that can be used to process tags that themselves contain lists of information.
 //! Those lists add information or interpretation to messages and senders, and are expressed in somewhat consistent formats.
 
+use derive_more::{Constructor, Deref, From};
+use parse_display::{Display, FromStr};
+use std::default::Default;
+use std::iter::FilterMap;
 use std::ops::Range;
 use std::str::FromStr;
-use std::default::Default;
-use derive_more::{Deref, From, Constructor};
-use parse_display::{Display, FromStr};
-use std::iter::FilterMap;
 use std::str::Split;
 
 /// We need to supply separators based on which the string will be split apart:
@@ -27,22 +27,16 @@ pub struct SeparatorInfo {
 #[from(forward)]
 #[display("{0.start}-{0.end}")] // this also defines from_str
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
-pub struct MsgRange(
-    #[from_str(default)]
-    Range<u16>
-);
+pub struct MsgRange(#[from_str(default)] Range<u16>);
 
 /// Trait that applies information stored in a tag that adds attribute information to specific parts of a message. (like emote interpretation)
 pub trait Attribution<Ref, Attr>: Sized
 where
     Ref: FromStr, // reference to the object that is being described
-    Attr: FromStr, // attribute that is given to the referenced object
+    Attr: FromStr,
 {
     /// Given a vector of object references and attributes, creates an element of itself.
-    fn new(
-        reference: Ref,
-        attributes: impl Iterator<Item = Attr>,
-    ) -> Self;
+    fn new(reference: Ref, attributes: impl Iterator<Item = Attr>) -> Self;
 
     /// When implementing this attribute, this function gives all necessery information on how to parse the original string.
     fn get_separator_info() -> SeparatorInfo;
@@ -64,7 +58,7 @@ where
 
     /// Parses the attribute information.
     #[allow(clippy::type_complexity)]
-    fn parse_attributes(input: &'_ str) -> FilterMap<Split<'_,char>, fn(&str)->Option<Attr>> {
+    fn parse_attributes(input: &'_ str) -> FilterMap<Split<'_, char>, fn(&str) -> Option<Attr>> {
         input
             .split(Self::get_attribute_separator())
             .filter_map(|x| Attr::from_str(x).ok())
@@ -73,7 +67,11 @@ where
     /// Parses a single attribution.
     fn parse(item: &str) -> Option<Self> {
         split_pair(item, Self::get_range_attribute_separator()).and_then(|(left, right)| {
-            Self::new(<Ref as FromStr>::from_str(&left).ok()?, Self::parse_attributes(&right)).into()
+            Self::new(
+                <Ref as FromStr>::from_str(&left).ok()?,
+                Self::parse_attributes(&right),
+            )
+            .into()
         })
     }
 }
@@ -92,7 +90,7 @@ pub(crate) fn split_pair<'a>(input: impl AsRef<str> + 'a, sep: char) -> Option<(
 /// We wrap the iterator of attributions so that we can define from_str on it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Deref, Constructor)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
-pub struct AttributionVec<Ref: FromStr, Attr: FromStr, T: Attribution<Ref, Attr>>{
+pub struct AttributionVec<Ref: FromStr, Attr: FromStr, T: Attribution<Ref, Attr>> {
     #[deref]
     element: Vec<T>,
     _phantom_data: std::marker::PhantomData<Ref>,
@@ -106,7 +104,7 @@ where
     T: Attribution<Ref, Attr>,
 {
     fn from(v: Vec<T>) -> Self {
-        AttributionVec::<_,_,_>::new(v, std::marker::PhantomData, std::marker::PhantomData)
+        AttributionVec::<_, _, _>::new(v, std::marker::PhantomData, std::marker::PhantomData)
     }
 }
 
@@ -120,11 +118,9 @@ where
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let split_char = <T as Attribution<Ref, Attr>>::get_attribution_separator();
-        Ok(
-                s.split(split_char)
-                .filter_map(<T as Attribution<Ref, Attr>>::parse)
-                .collect::<Vec<_>>()
-                .into()
-        )
+        Ok(s.split(split_char)
+            .filter_map(<T as Attribution<Ref, Attr>>::parse)
+            .collect::<Vec<_>>()
+            .into())
     }
 }

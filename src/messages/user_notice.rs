@@ -1,6 +1,8 @@
-use crate::twitch::{Color, AttributionVec, Attribution, BadgeVec, EmoteVec, FlagVec};
-use std::str::FromStr;
+use crate::irc::tags::ParsedTag;
+use crate::twitch::{Attribution, AttributionVec, BadgeVec, Color, EmoteVec, FlagVec};
+
 use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
+use std::str::FromStr;
 
 /// A paid subscription ot the channel
 #[non_exhaustive]
@@ -74,13 +76,21 @@ impl<'a> UserNotice<'a> {
     );
 
     /// Helper function to return information that can be parsed as AttributionVec. (copied from Privmsg)
-    fn tag_to_attribution_vec<Ref, Attr, T>(&'a self, tag: impl AsRef<str>) -> AttributionVec<Ref, Attr, T> 
+    fn tag_to_attribution_vec<Ref, Attr, T>(
+        &'a self,
+        tag: impl AsRef<str>,
+    ) -> AttributionVec<Ref, Attr, T>
     where
-    Ref: FromStr,
-    Attr: FromStr,
-    T: Attribution<Ref, Attr>,{
-        self.tags().get(tag.as_ref()).map(AttributionVec::<Ref,Attr,T>::from_str)
-        .map(Result::ok).flatten().unwrap_or_else(|| vec![].into())
+        Ref: FromStr,
+        Attr: FromStr,
+        T: Attribution<Ref, Attr>,
+    {
+        self.tags()
+            .get(tag.as_ref())
+            .map(AttributionVec::<Ref, Attr, T>::from_str)
+            .map(Result::ok)
+            .flatten()
+            .unwrap_or_else(|| vec![].into())
     }
 
     /// Metadata related to the chat badges
@@ -96,7 +106,7 @@ impl<'a> UserNotice<'a> {
     }
 
     /// The user's color, if set
-    pub fn color(&self) -> Option<Color> {
+    pub fn color(&self) -> Option<ParsedTag<Color>> {
         self.tags().get_parsed("color")
     }
 
@@ -154,17 +164,17 @@ impl<'a> UserNotice<'a> {
     }
 
     /// The id of the room for this notice
-    pub fn room_id(&self) -> Option<u64> {
+    pub fn room_id(&self) -> Option<ParsedTag<u64>> {
         self.tags().get_parsed("room-id")
     }
 
     /// The timestamp which twitch received this message
-    pub fn tmi_sent_ts(&self) -> Option<u64> {
+    pub fn tmi_sent_ts(&self) -> Option<ParsedTag<u64>> {
         self.tags().get_parsed("tmi-sent-ts")
     }
 
     /// User id of the user who sent this notice
-    pub fn user_id(&self) -> Option<u64> {
+    pub fn user_id(&self) -> Option<ParsedTag<u64>> {
         self.tags().get_parsed("user-id")
     }
 
@@ -185,7 +195,7 @@ impl<'a> UserNotice<'a> {
     ///
     /// This is the same as msg-param-months but sent for different
     /// types of user notices.
-    pub fn msg_param_cumulative_months(&self) -> Option<u64> {
+    pub fn msg_param_cumulative_months(&self) -> Option<ParsedTag<u64>> {
         self.tags().get_parsed("msg-param-cumulative-months")
     }
 
@@ -206,13 +216,13 @@ impl<'a> UserNotice<'a> {
     ///
     /// This is the same as msg-param-cumulative-months but sent
     /// for different types of user notices.
-    pub fn msg_param_months(&self) -> Option<u64> {
+    pub fn msg_param_months(&self) -> Option<ParsedTag<u64>> {
         self.tags().get_parsed("msg-param-months")
     }
 
     /// (Sent only on anongiftpaidupgrade, giftpaidupgrade) The number of gifts
     /// the gifter has given during the promo indicated by msg-param-promo-name.
-    pub fn msg_param_promo_gift_total(&self) -> Option<u64> {
+    pub fn msg_param_promo_gift_total(&self) -> Option<ParsedTag<u64>> {
         self.tags().get_parsed("msg-param-promo-gift-total")
     }
 
@@ -230,7 +240,7 @@ impl<'a> UserNotice<'a> {
 
     /// (Sent only on subgift, anonsubgift) The user ID of the subscription gift
     /// recipient.
-    pub fn msg_param_recipient_id(&self) -> Option<u64> {
+    pub fn msg_param_recipient_id(&self) -> Option<ParsedTag<u64>> {
         self.tags().get_parsed("msg-param-recipient-id")
     }
 
@@ -254,7 +264,7 @@ impl<'a> UserNotice<'a> {
 
     /// (Sent only on sub, resub) Boolean indicating whether users want their
     /// streaks to be shared.
-    pub fn msg_param_should_share_streak(&self) -> Option<bool> {
+    pub fn msg_param_should_share_streak(&self) -> Option<ParsedTag<bool>> {
         self.tags().get_parsed("msg-param-should-share-streak")
     }
 
@@ -262,7 +272,7 @@ impl<'a> UserNotice<'a> {
     /// subscribed.
     ///
     /// This is 0 if msg-param-should-share-streak is 0.
-    pub fn msg_param_streak_months(&self) -> Option<u64> {
+    pub fn msg_param_streak_months(&self) -> Option<ParsedTag<u64>> {
         self.tags().get_parsed("msg-param-streak-months")
     }
 
@@ -296,7 +306,7 @@ impl<'a> UserNotice<'a> {
 
     /// (Sent only on raid) The number of viewers watching the source channel
     /// raiding this channel.
-    pub fn msg_param_viewer_count(&self) -> Option<u64> {
+    pub fn msg_param_viewer_count(&self) -> Option<ParsedTag<u64>> {
         self.tags().get_parsed("msg-param-viewerCount")
     }
 
@@ -308,7 +318,7 @@ impl<'a> UserNotice<'a> {
 
     /// (Sent only on bitsbadgetier) The tier of the bits badge the user just
     /// earned; e.g. 100, 1000, 10000.
-    pub fn msg_param_threshold(&self) -> Option<u64> {
+    pub fn msg_param_threshold(&self) -> Option<ParsedTag<u64>> {
         self.tags().get_parsed("msg-param-threshold")
     }
 }

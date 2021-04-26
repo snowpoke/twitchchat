@@ -1,7 +1,7 @@
-use crate::twitch::{Color, AttributionVec, Attribution, BadgeVec, EmoteVec, FlagVec};
+use crate::irc::tags::ParsedTag;
+use crate::twitch::{Attribution, AttributionVec, BadgeVec, Color, EmoteVec, FlagVec};
 use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
 use std::str::FromStr;
-
 
 /// Identifies a user's chat settings or properties (e.g., chat color)..
 #[derive(Clone, PartialEq)]
@@ -19,15 +19,23 @@ impl<'a> UserState<'a> {
         channel
     );
 
-        /// Helper function to return information that can be parsed as AttributionVec. (copied from Privmsg)
-        fn tag_to_attribution_vec<Ref, Attr, T>(&'a self, tag: impl AsRef<str>) -> AttributionVec<Ref, Attr, T> 
-        where
+    /// Helper function to return information that can be parsed as AttributionVec. (copied from Privmsg)
+    fn tag_to_attribution_vec<Ref, Attr, T>(
+        &'a self,
+        tag: impl AsRef<str>,
+    ) -> AttributionVec<Ref, Attr, T>
+    where
         Ref: FromStr,
         Attr: FromStr,
-        T: Attribution<Ref, Attr>,{
-            self.tags().get(tag.as_ref()).map(AttributionVec::<Ref,Attr,T>::from_str)
-            .map(Result::ok).flatten().unwrap_or_else(|| vec![].into())
-        }
+        T: Attribution<Ref, Attr>,
+    {
+        self.tags()
+            .get(tag.as_ref())
+            .map(AttributionVec::<Ref, Attr, T>::from_str)
+            .map(Result::ok)
+            .flatten()
+            .unwrap_or_else(|| vec![].into())
+    }
 
     /// Metadata related to the chat badges
     ///
@@ -43,7 +51,7 @@ impl<'a> UserState<'a> {
     }
 
     /// The user's color, if set
-    pub fn color(&self) -> Option<Color> {
+    pub fn color(&self) -> Option<ParsedTag<Color>> {
         self.tags().get_parsed("color")
     }
 

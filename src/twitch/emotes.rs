@@ -9,7 +9,7 @@ They are presented (to the irc connection) in a `id:range1,range2/id2:range1,..`
 `"Kappa testing Kappa"` would be `25:0-5,14-19`
 */
 
-use crate::twitch::attributes::{Attribution, SeparatorInfo, MsgRange, AttributionVec};
+use crate::twitch::attributes::{Attribution, AttributionVec, MsgRange, SeparatorInfo};
 use std::str::FromStr;
 
 /// Emotes.
@@ -25,10 +25,7 @@ pub struct Emote {
 }
 
 impl Attribution<usize, MsgRange> for Emote {
-    fn new(
-        reference: usize,
-        attributes: impl Iterator<Item = MsgRange>,
-    ) -> Self {
+    fn new(reference: usize, attributes: impl Iterator<Item = MsgRange>) -> Self {
         Self {
             id: reference,
             ranges: attributes.collect(),
@@ -39,7 +36,7 @@ impl Attribution<usize, MsgRange> for Emote {
         SeparatorInfo {
             attribution_separator: '/',
             range_attribute_separator: ':',
-            attribute_separator: ',', 
+            attribute_separator: ',',
         }
     }
 }
@@ -78,8 +75,6 @@ pub type EmoteVec = AttributionVec<usize, MsgRange, Emote>;
 // pub fn parse_emotes_iter(input: &str) -> impl Iterator<Item = Emote> + '_ {
 //     Emote::parse(input)
 // }
-
-
 
 #[cfg(test)]
 mod tests {

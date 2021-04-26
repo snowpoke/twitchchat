@@ -1,13 +1,12 @@
 #![allow(missing_docs)]
+use crate::twitch::attributes::{Attribution, AttributionVec, SeparatorInfo};
 /// The kind of the [badges] that are associated with messages.
 ///
 /// Any unknown (e.g. custom badges/sub events, etc) are placed into the [Unknown] variant.
 ///
 /// [badges]: Badge
 /// [Unknown]: BadgeKind::Unknown
-
 use derive_more::IsVariant;
-use crate::twitch::attributes::{Attribution, SeparatorInfo, AttributionVec};
 use parse_display::{Display, FromStr};
 use std::str::FromStr;
 
@@ -17,7 +16,7 @@ use std::str::FromStr;
 #[display(style = "kebab-case")] // this also defines the FromStr style
 #[display("{}/1")]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
-pub enum Badge{
+pub enum Badge {
     /// Admin badge
     Admin,
     /// Broadcaster badge
@@ -58,21 +57,20 @@ pub enum Badge{
     Unknown(String, u64),
 }
 
-impl Badge{
+impl Badge {
     // all other is_variant() functions are derived automatically
     /// Returns whether this badge is any kind of subscriber badge.
-    pub(crate) fn is_subscriber(&self) -> bool{
+    pub(crate) fn is_subscriber(&self) -> bool {
         self.is_tier_subscriber() || self.is_no_tier_subscriber()
     }
 }
 /// Metadata to the chat badges
 pub type BadgeInfo = Badge;
 
-
 /// We implement Attribution, but define a custom parse function.
 /// This is a roundabout way of still being able to use AttributionVec<Badge>.
 impl Attribution<Badge, u64> for Badge {
-    fn new(reference: Badge, _attributes: impl Iterator<Item=u64>) -> Self {
+    fn new(reference: Badge, _attributes: impl Iterator<Item = u64>) -> Self {
         reference
     }
 
@@ -80,7 +78,7 @@ impl Attribution<Badge, u64> for Badge {
         SeparatorInfo {
             attribution_separator: ',',
             range_attribute_separator: '\0', // does not matter
-            attribute_separator: '\0', // does not matter
+            attribute_separator: '\0',       // does not matter
         }
     }
 
@@ -92,8 +90,8 @@ impl Attribution<Badge, u64> for Badge {
 /// Vector containing user badges
 pub type BadgeVec = AttributionVec<Badge, u64, Badge>;
 
-/* 
- *//* 
+/*
+ *//*
 /// An iterator over badges
 #[derive(Debug, Constructor)]
 pub struct BadgesIter<'a> {
@@ -133,7 +131,7 @@ mod tests {
             ("moderator/1", Badge::Moderator),
             ("subscriber/1", Badge::NoTierSubscriber(1)),
             ("subscriber/103", Badge::NoTierSubscriber(103)),
-            ("subscriber/3001", Badge::TierSubscriber(3,1)),
+            ("subscriber/3001", Badge::TierSubscriber(3, 1)),
             ("staff/1", Badge::Staff),
             ("turbo/1", Badge::Turbo),
             ("premium/1", Badge::Premium),

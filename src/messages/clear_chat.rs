@@ -1,5 +1,5 @@
+use crate::irc::tags::ParsedTag;
 use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
-
 /// When a user's message(s) have been purged.
 ///
 /// Typically after a user is banned from chat or timed out
@@ -25,7 +25,7 @@ impl<'a> ClearChat<'a> {
     );
 
     /// (Optional) Duration of the timeout, in seconds. If omitted, the ban is permanent.
-    pub fn ban_duration(&self) -> Option<u64> {
+    pub fn ban_duration(&self) -> Option<ParsedTag<u64>> {
         self.tags().get_parsed("ban-duration")
     }
 

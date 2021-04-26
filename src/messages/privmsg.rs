@@ -1,7 +1,7 @@
-use crate::twitch::attributes::{AttributionVec, Attribution};
+use crate::irc::tags::ParsedTag;
+use crate::twitch::attributes::{Attribution, AttributionVec};
+use crate::twitch::{Badge, BadgeVec, Color, EmoteVec, FlagVec};
 use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
-
-use crate::twitch::{BadgeVec, EmoteVec, FlagVec, Color, Badge};
 use std::str::FromStr;
 
 /// Some PRIVMSGs are considered 'CTCP' (client-to-client protocol)
@@ -29,7 +29,6 @@ pub struct Privmsg<'a> {
     data: MaybeOwnedIndex,
     ctcp: Option<MaybeOwnedIndex>,
 }
-
 
 impl<'a> Privmsg<'a> {
     raw!();
@@ -78,13 +77,21 @@ impl<'a> Privmsg<'a> {
     }
 
     /// Helper function to return information that can be parsed as AttributionVec.
-    fn tag_to_attribution_vec<Ref, Attr, T>(&'a self, tag: impl AsRef<str>) -> AttributionVec<Ref, Attr, T> 
+    fn tag_to_attribution_vec<Ref, Attr, T>(
+        &'a self,
+        tag: impl AsRef<str>,
+    ) -> AttributionVec<Ref, Attr, T>
     where
-    Ref: FromStr,
-    Attr: FromStr,
-    T: Attribution<Ref, Attr>,{
-        self.tags().get(tag.as_ref()).map(AttributionVec::<Ref,Attr,T>::from_str)
-        .map(Result::ok).flatten().unwrap_or_else(|| vec![].into())
+        Ref: FromStr,
+        Attr: FromStr,
+        T: Attribution<Ref, Attr>,
+    {
+        self.tags()
+            .get(tag.as_ref())
+            .map(AttributionVec::<Ref, Attr, T>::from_str)
+            .map(Result::ok)
+            .flatten()
+            .unwrap_or_else(|| vec![].into())
     }
     /// Metadata related to the chat badges
     ///
@@ -100,12 +107,12 @@ impl<'a> Privmsg<'a> {
     }
 
     /// How many bits were attached to this message
-    pub fn bits(&self) -> Option<u64> {
+    pub fn bits(&self) -> Option<ParsedTag<u64>> {
         self.tags().get_parsed("bits")
     }
 
     /// The color of the user who sent this message, if set
-    pub fn color(&self) -> Option<Color> {
+    pub fn color(&self) -> Option<ParsedTag<Color>> {
         self.tags().get_parsed("color")
     }
 
@@ -169,23 +176,21 @@ impl<'a> Privmsg<'a> {
 
     /// Helper function that checks if any badge fulfills a specific requirement. Intended to be used with Badge::is_variant functions.
     fn any_badge(&self, is_badge_fn: impl Fn(&Badge) -> bool) -> bool {
-        self.badges()
-            .iter()
-            .any(is_badge_fn)
+        self.badges().iter().any(is_badge_fn)
     }
 
     /// The id of the room this message was sent to
-    pub fn room_id(&self) -> Option<u64> {
+    pub fn room_id(&self) -> Option<ParsedTag<u64>> {
         self.tags().get_parsed("room-id")
     }
 
     /// The timestamp of when this message was received by Twitch
-    pub fn tmi_sent_ts(&self) -> Option<u64> {
+    pub fn tmi_sent_ts(&self) -> Option<ParsedTag<u64>> {
         self.tags().get_parsed("tmi-sent-ts")
     }
 
     /// The id of the user who sent this message
-    pub fn user_id(&self) -> Option<u64> {
+    pub fn user_id(&self) -> Option<ParsedTag<u64>> {
         self.tags().get_parsed("user-id")
     }
 
@@ -206,7 +211,6 @@ impl<'a> Privmsg<'a> {
     pub fn msg_id(&self) -> Option<&str> {
         self.tags().get("msg-id")
     }
-
 }
 
 impl<'a> FromIrcMessage<'a> for Privmsg<'a> {

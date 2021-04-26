@@ -48,7 +48,7 @@ impl std::error::Error for BuilderError {}
 /// // get the 'normal' tags from this type
 /// let tags = user_tags.as_tags();
 ///
-/// let color = tags.get_parsed::<_, Color>("color").unwrap();
+/// let color = tags.get_parsed::<_, Color>("color").unwrap().unwrap();
 /// assert_eq!(color.rgb, RGB(0xF0, 0xF0, 0xF0));
 ///
 /// assert_eq!(tags.get("display-name").unwrap(), "some-fancy-name");
@@ -208,7 +208,7 @@ mod tests {
             assert_eq!(tags.get_unescaped(k).unwrap(), *v)
         }
 
-        assert_eq!(tags.get_parsed::<_, i32>("len").unwrap(), 42);
+        assert_eq!(tags.get_parsed::<_, i32>("len").unwrap().unwrap(), 42);
 
         assert!(matches!(
             TagsBuilder::new().build().unwrap_err(),
