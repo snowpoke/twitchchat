@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 /// The kind of the [badges] that are associated with messages.
 ///
 /// Any unknown (e.g. custom badges/sub events, etc) are placed into the [Unknown] variant.
@@ -5,24 +6,24 @@
 /// [badges]: Badge
 /// [Unknown]: BadgeKind::Unknown
 
-use derive_more::Constructor;
+use derive_more::IsVariant;
+use crate::twitch::attributes::{Attribution, SeparatorInfo, AttributionVec};
+use parse_display::{Display, FromStr};
+use std::str::FromStr;
+
 /// Describes the kind of badge owned by the user.
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Display, FromStr, Debug, Clone, PartialEq, Eq, Hash, IsVariant)]
+#[display(style = "kebab-case")] // this also defines the FromStr style
+#[display("{}/1")]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
-pub enum BadgeKind<'a> {
+pub enum Badge{
     /// Admin badge
     Admin,
-    /// Bits badge
-    Bits,
     /// Broadcaster badge
     Broadcaster,
-    /// GlobalMod badge
-    GlobalMod,
     /// Moderator badge
     Moderator,
-    /// Subscriber badge
-    Subscriber,
     /// Staff badge
     Staff,
     /// Turbo badge
@@ -33,71 +34,66 @@ pub enum BadgeKind<'a> {
     Vip,
     /// Partner badge
     Partner,
+
+    /// Bits badge
+    #[display("bits/{0}")]
+    Bits(u64), //u64: number of bits
+
+    /// GlobalMod badge
+    #[display("global_mod/1")] // legacy badge in snake_case
+    GlobalMod,
+
+    /// Subscriber badge with tier info
+    /// This is being parsed if the data number matches the format [num]0[num]
+    #[display("subscriber/{0}0{1:>02}")]
+    TierSubscriber(u8, #[from_str(regex = "[0-9]{2,}")] u32), //u8: Subscription tier, u32: Subscription months (at least two characters)
+
+    /// Subscriber badge without tier info.
+    /// This is being parsed if the data number didn't match the pattern in TierSubscriber.
+    #[display("subscriber/{0}")]
+    NoTierSubscriber(u32), //u32: Subscription months
+
     /// Unknown badge. Likely a custom badge
-    Unknown(&'a str),
+    #[display("{0}/{1}")] // displays only the inside data
+    Unknown(String, u64),
 }
 
-/// Badges attached to a message
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
-pub struct Badge<'a> {
-    /// The kind of the Badge
-    pub kind: BadgeKind<'a>,
-    /// Any associated data with the badge
-    ///
-    /// May be:
-    /// - version
-    /// - number of bits
-    /// - number of months needed for sub badge
-    /// - etc
-    pub data: &'a str,
+impl Badge{
+    // all other is_variant() functions are derived automatically
+    /// Returns whether this badge is any kind of subscriber badge.
+    pub(crate) fn is_subscriber(&self) -> bool{
+        self.is_tier_subscriber() || self.is_no_tier_subscriber()
+    }
 }
+/// Metadata to the chat badges
+pub type BadgeInfo = Badge;
 
-impl<'a> Badge<'a> {
-    /// Tries to parse a badge from this message part
-    pub fn parse(input: &'a str) -> Option<Badge<'a>> {
-        use BadgeKind::*;
-        let mut iter = input.split('/');
-        let kind = match iter.next()? {
-            "admin" => Admin,
-            "bits" => Bits,
-            "broadcaster" => Broadcaster,
-            "global_mod" => GlobalMod,
-            "moderator" => Moderator,
-            "subscriber" => Subscriber,
-            "staff" => Staff,
-            "turbo" => Turbo,
-            "premium" => Premium,
-            "vip" => Vip,
-            "partner" => Partner,
-            badge => Unknown(badge),
-        };
 
-        iter.next().map(|data| Badge { kind, data })
+/// We implement Attribution, but define a custom parse function.
+/// This is a roundabout way of still being able to use AttributionVec<Badge>.
+impl Attribution<Badge, u64> for Badge {
+    fn new(reference: Badge, _attributes: impl Iterator<Item=u64>) -> Self {
+        reference
     }
 
-    /// The `&str` representation of the [`BadgeKind`]
-    ///
-    /// In case of [`BadgeKind::Unknown`], this is the same value as `BadgeKind::Unknown(badge)`
-    pub const fn kind_raw(&self) -> &'a str {
-        use BadgeKind::*;
-        match self.kind {
-            Admin => "admin",
-            Bits => "bits",
-            Broadcaster => "broadcaster",
-            GlobalMod => "global_mod",
-            Moderator => "moderator",
-            Subscriber => "subscriber",
-            Staff => "staff",
-            Turbo => "turbo",
-            Premium => "premium",
-            Vip => "vip",
-            Partner => "partner",
-            Unknown(s) => s,
+    fn get_separator_info() -> SeparatorInfo {
+        SeparatorInfo {
+            attribution_separator: ',',
+            range_attribute_separator: '\0', // does not matter
+            attribute_separator: '\0', // does not matter
         }
     }
+
+    fn parse(item: &str) -> Option<Self> {
+        <Badge as FromStr>::from_str(item).ok()
+    }
 }
 
+/// Vector containing user badges
+pub type BadgeVec = AttributionVec<Badge, u64, Badge>;
+
+/* 
+ *//* 
 /// An iterator over badges
 #[derive(Debug, Constructor)]
 pub struct BadgesIter<'a> {
@@ -116,8 +112,11 @@ impl<'a> Iterator for BadgesIter<'a> {
     }
 }
 
-/// Metadata to the chat badges
-pub type BadgeInfo<'a> = Badge<'a>;
+#[allow(dead_code)]
+pub(crate) fn parse_badges_iter(input: &str) -> impl Iterator<Item = Badge<'_>> + '_ {
+    input.split(',').filter_map(Badge::parse)
+}
+ */
 
 #[cfg(test)]
 mod tests {
@@ -126,50 +125,34 @@ mod tests {
     #[test]
     fn parse_known_badges() {
         // ("input", expected value)
-        const BADGE_KINDS: &[(&str, BadgeKind<'_>)] = &[
-            ("admin", BadgeKind::Admin),
-            ("bits", BadgeKind::Bits),
-            ("broadcaster", BadgeKind::Broadcaster),
-            ("global_mod", BadgeKind::GlobalMod),
-            ("moderator", BadgeKind::Moderator),
-            ("subscriber", BadgeKind::Subscriber),
-            ("staff", BadgeKind::Staff),
-            ("turbo", BadgeKind::Turbo),
-            ("premium", BadgeKind::Premium),
-            ("vip", BadgeKind::Vip),
-            ("partner", BadgeKind::Partner),
-            ("unknown", BadgeKind::Unknown("unknown")),
+        let badge_set: &[(&str, Badge)] = &[
+            ("admin/1", Badge::Admin),
+            ("bits/100", Badge::Bits(100)),
+            ("broadcaster/1", Badge::Broadcaster),
+            ("global_mod/1", Badge::GlobalMod),
+            ("moderator/1", Badge::Moderator),
+            ("subscriber/1", Badge::NoTierSubscriber(1)),
+            ("subscriber/103", Badge::NoTierSubscriber(103)),
+            ("subscriber/3001", Badge::TierSubscriber(3,1)),
+            ("staff/1", Badge::Staff),
+            ("turbo/1", Badge::Turbo),
+            ("premium/1", Badge::Premium),
+            ("vip/1", Badge::Vip),
+            ("partner/1", Badge::Partner),
+            ("unknown/1", Badge::Unknown("unknown".into(), 1)),
         ];
 
-        for (raw, kind) in BADGE_KINDS {
-            let badge_str = format!("{}/0", raw);
-            let badge = Badge::parse(&badge_str).expect("Malformed badge test");
-
-            assert_eq!(badge.kind, *kind);
-            assert_eq!(badge.kind_raw(), *raw);
-            assert_eq!(badge.data, "0");
+        for (raw, badge) in badge_set {
+            println!("{}", raw);
+            let parsed_badge = Badge::from_str(raw).expect("Malformed badge test");
+            assert_eq!(*badge, parsed_badge);
         }
-    }
-
-    #[test]
-    fn parse_unknown() {
-        let badge_str = "this_badge_does_not_exist/0";
-        let badge = Badge::parse(badge_str).unwrap();
-        assert_eq!(
-            badge,
-            Badge {
-                kind: BadgeKind::Unknown("this_badge_does_not_exist"),
-                data: "0"
-            }
-        );
-
-        assert_eq!(badge.kind_raw(), "this_badge_does_not_exist")
     }
 
     #[test]
     fn parse_invalid() {
         let badge_str = "this_badge_is_invalid";
-        let badge = Badge::parse(badge_str);
-        assert_eq!(badge, None)
+        let badge_result = Badge::from_str(badge_str);
+        assert!(badge_result.is_err())
     }
 }

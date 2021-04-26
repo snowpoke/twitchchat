@@ -1,9 +1,7 @@
-use crate::twitch::attributes::{MsgRange, AttributionVec};
+use crate::twitch::attributes::{AttributionVec, Attribution};
 use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
 
-use crate::twitch::{
-    parse_badges, parse_badges_iter,Badge, BadgeInfo, BadgeKind, Color, Emote, BadgesIter
-};
+use crate::twitch::{BadgeVec, EmoteVec, FlagVec, Color, Badge};
 use std::str::FromStr;
 
 /// Some PRIVMSGs are considered 'CTCP' (client-to-client protocol)
@@ -50,11 +48,11 @@ impl<'a> Privmsg<'a> {
     );
 
     /// Iterator alternative to `Privmsg::badges()`
-    pub fn iter_badges(&self) -> BadgesIter {
-        BadgesIter::new(
-            self.tags().get("badges").map(|s| s.split(',')),
-        )
-    }
+    // pub fn iter_badges(&self) -> BadgesIter {
+    //     BadgesIter::new(
+    //         self.tags().get("badges").map(|s| s.split(',')),
+    //     )
+    // }
 
     /// Iterator alternative to `Privmsg::emotes()`
     // pub fn iter_emotes(&self) -> EmotesIter {
@@ -79,23 +77,26 @@ impl<'a> Privmsg<'a> {
         matches!(self.ctcp(), Some(Ctcp::Action))
     }
 
+    /// Helper function to return information that can be parsed as AttributionVec.
+    fn tag_to_attribution_vec<Ref, Attr, T>(&'a self, tag: impl AsRef<str>) -> AttributionVec<Ref, Attr, T> 
+    where
+    Ref: FromStr,
+    Attr: FromStr,
+    T: Attribution<Ref, Attr>,{
+        self.tags().get(tag.as_ref()).map(AttributionVec::<Ref,Attr,T>::from_str)
+        .map(Result::ok).flatten().unwrap_or_else(|| vec![].into())
+    }
     /// Metadata related to the chat badges
     ///
     /// Currently used only for `subscriber`, to indicate the exact number of
     /// months the user has been a subscriber
-    pub fn badge_info(&'a self) -> Vec<BadgeInfo<'a>> {
-        self.tags()
-            .get("badge-info")
-            .map(parse_badges)
-            .unwrap_or_default()
+    pub fn badge_info(&'a self) -> BadgeVec {
+        self.tag_to_attribution_vec("badge-info")
     }
 
     /// Badges attached to this message
-    pub fn badges(&'a self) -> Vec<Badge<'a>> {
-        self.tags()
-            .get("badges")
-            .map(parse_badges)
-            .unwrap_or_default()
+    pub fn badges(&'a self) -> BadgeVec {
+        self.tag_to_attribution_vec("badges")
     }
 
     /// How many bits were attached to this message
@@ -122,48 +123,55 @@ impl<'a> Privmsg<'a> {
     }
 
     /// Emotes attached to this message
-    pub fn emotes(&self) -> AttributionVec<usize, MsgRange, Emote> {
-        self.tags()
-            .get("emotes")
-            .map(AttributionVec::<usize, MsgRange, Emote>::from_str)
-            .map(Result::ok) // turn inner Result into Option
-            .flatten()
-            .unwrap_or_default()
+    pub fn emotes(&self) -> EmoteVec {
+        self.tag_to_attribution_vec("emotes")
+    }
+
+    /// Flags attached to this message
+    pub fn flags(&self) -> FlagVec {
+        self.tag_to_attribution_vec("flags")
     }
 
     /// Whether the user sending this message was a broadcaster
     pub fn is_broadcaster(&self) -> bool {
-        self.contains_badge(BadgeKind::Broadcaster)
+        self.any_badge(Badge::is_broadcaster)
     }
 
     /// Whether the user sending this message was a moderator
     pub fn is_moderator(&self) -> bool {
-        self.contains_badge(BadgeKind::Moderator)
+        self.any_badge(Badge::is_moderator)
     }
 
     /// Whether the user sending this message was a vip
     pub fn is_vip(&self) -> bool {
-        self.contains_badge(BadgeKind::Vip)
+        self.any_badge(Badge::is_vip)
     }
 
     /// Whether the user sending this message was a susbcriber
     pub fn is_subscriber(&self) -> bool {
-        self.contains_badge(BadgeKind::Subscriber)
+        self.any_badge(Badge::is_subscriber)
     }
 
     /// Whether the user sending this message was a staff member
     pub fn is_staff(&self) -> bool {
-        self.contains_badge(BadgeKind::Staff)
+        self.any_badge(Badge::is_staff)
     }
 
     /// Whether the user sending this message had turbo
     pub fn is_turbo(&self) -> bool {
-        self.contains_badge(BadgeKind::Turbo)
+        self.any_badge(Badge::is_turbo)
     }
 
     /// Whether the user sending this message was a global moderator
     pub fn is_global_moderator(&self) -> bool {
-        self.contains_badge(BadgeKind::GlobalMod)
+        self.any_badge(Badge::is_global_mod)
+    }
+
+    /// Helper function that checks if any badge fulfills a specific requirement. Intended to be used with Badge::is_variant functions.
+    fn any_badge(&self, is_badge_fn: impl Fn(&Badge) -> bool) -> bool {
+        self.badges()
+            .iter()
+            .any(is_badge_fn)
     }
 
     /// The id of the room this message was sent to
@@ -199,13 +207,6 @@ impl<'a> Privmsg<'a> {
         self.tags().get("msg-id")
     }
 
-    fn contains_badge(&self, badge: BadgeKind<'_>) -> bool {
-        self.tags()
-            .get("badges")
-            .into_iter()
-            .flat_map(parse_badges_iter)
-            .any(|x| x.kind == badge)
-    }
 }
 
 impl<'a> FromIrcMessage<'a> for Privmsg<'a> {
@@ -383,14 +384,14 @@ mod tests {
         }
     }
 
-    #[test]
-    fn privmsg_badges_iter() {
-        let input = "@badge-info=;badges=broadcaster/1;color=#FF69B4;display-name=museun;emote-only=1;emotes=25:0-4,6-10/81274:12-17;flags=;id=4e160a53-5482-4764-ba28-f224cd59a51f;mod=0;room-id=23196011;subscriber=0;tmi-sent-ts=1601079032426;turbo=0;user-id=23196011;user-type= :museun!museun@museun.tmi.twitch.tv PRIVMSG #museun :Kappa Kappa VoHiYo\r\n";
-        for msg in parse(input).map(|s| s.unwrap()) {
-            let msg = Privmsg::from_irc(msg).unwrap();
-            assert_eq!(msg.iter_badges().count(), 1);
-        }
-    }
+    // #[test]
+    // fn privmsg_badges_iter() {
+    //     let input = "@badge-info=;badges=broadcaster/1;color=#FF69B4;display-name=museun;emote-only=1;emotes=25:0-4,6-10/81274:12-17;flags=;id=4e160a53-5482-4764-ba28-f224cd59a51f;mod=0;room-id=23196011;subscriber=0;tmi-sent-ts=1601079032426;turbo=0;user-id=23196011;user-type= :museun!museun@museun.tmi.twitch.tv PRIVMSG #museun :Kappa Kappa VoHiYo\r\n";
+    //     for msg in parse(input).map(|s| s.unwrap()) {
+    //         let msg = Privmsg::from_irc(msg).unwrap();
+    //         assert_eq!(msg.iter_badges().count(), 1);
+    //     }
+    // }
 
     // #[test]
     // fn privmsg_emotes_iter() {

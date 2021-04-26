@@ -1,4 +1,4 @@
-use crate::twitch::{parse_badges, Badge, BadgeInfo, Color, Emote, AttributionVec, MsgRange};
+use crate::twitch::{Color, AttributionVec, Attribution, BadgeVec, EmoteVec, FlagVec};
 use std::str::FromStr;
 use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
 
@@ -73,22 +73,26 @@ impl<'a> UserNotice<'a> {
         message
     );
 
+    /// Helper function to return information that can be parsed as AttributionVec. (copied from Privmsg)
+    fn tag_to_attribution_vec<Ref, Attr, T>(&'a self, tag: impl AsRef<str>) -> AttributionVec<Ref, Attr, T> 
+    where
+    Ref: FromStr,
+    Attr: FromStr,
+    T: Attribution<Ref, Attr>,{
+        self.tags().get(tag.as_ref()).map(AttributionVec::<Ref,Attr,T>::from_str)
+        .map(Result::ok).flatten().unwrap_or_else(|| vec![].into())
+    }
+
     /// Metadata related to the chat badges
     ///
     /// Currently used only for `subscriber`, to indicate the exact number of months the user has been a subscriber
-    pub fn badge_info(&'a self) -> Vec<BadgeInfo<'a>> {
-        self.tags()
-            .get("badge-info")
-            .map(parse_badges)
-            .unwrap_or_default()
+    pub fn badge_info(&'a self) -> BadgeVec {
+        self.tag_to_attribution_vec("badge-info")
     }
 
     /// Badges attached to this message
-    pub fn badges(&'a self) -> Vec<Badge<'a>> {
-        self.tags()
-            .get("badges")
-            .map(parse_badges)
-            .unwrap_or_default()
+    pub fn badges(&'a self) -> BadgeVec {
+        self.tag_to_attribution_vec("badges")
     }
 
     /// The user's color, if set
@@ -102,13 +106,13 @@ impl<'a> UserNotice<'a> {
     }
 
     /// Emotes attached to this message
-    pub fn emotes(&self) -> AttributionVec<usize, MsgRange, Emote> {
-        self.tags()
-            .get("emotes")
-            .map(AttributionVec::<_, _, Emote>::from_str)
-            .map(Result::ok)
-            .flatten()
-            .unwrap_or_default()
+    pub fn emotes(&self) -> EmoteVec {
+        self.tag_to_attribution_vec("emotes")
+    }
+
+    /// Flags attached to this message
+    pub fn flags(&self) -> FlagVec {
+        self.tag_to_attribution_vec("flags")
     }
 
     /// A unique id (UUID) attached to this message

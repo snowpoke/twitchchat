@@ -19,7 +19,7 @@
 //! Message: "she hottie" -- Flags: "4-9:S.3"
 //! Message: "LMAO Poki wtf" -- Flags: "0-3:P.6,10-12:P.6"
 
-use crate::twitch::attributes::{split_pair, Attribution, MsgRange, SeparatorInfo};
+use crate::twitch::attributes::{split_pair, Attribution, MsgRange, SeparatorInfo, AttributionVec};
 use std::str::FromStr;
 use derive_more::Constructor;
 
@@ -39,7 +39,7 @@ pub enum ScoreType {
 pub struct Score(ScoreType, u8);
 
 /// Contains information about a flagged term.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Constructor)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Constructor)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct Flag {
     range: MsgRange,
@@ -81,10 +81,21 @@ impl Attribution<MsgRange, Score> for Flag {
     }
 }
 
+impl FromStr for Flag {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        <Flag as Attribution<MsgRange, Score>>::parse(s).ok_or(())
+    }
+}
+
+/// Vector containing flag attribute data.
+pub type FlagVec = AttributionVec<MsgRange, Score, Flag>;
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::twitch::AttributionVec;
+    use crate::twitch::FlagVec;
 
     const AGGRESSIVE: ScoreType = ScoreType::Aggressive;
     const IDENTITY: ScoreType = ScoreType::Identity;
@@ -152,7 +163,7 @@ mod tests {
         ];
 
         for (input, expect) in inputs {
-            let flags = AttributionVec::<_,_,Flag>::from_str(input).unwrap();
+            let flags = FlagVec::from_str(input).unwrap();
 
             assert_eq!(flags.len(), flags.len());
             assert_eq!(*flags, *expect);

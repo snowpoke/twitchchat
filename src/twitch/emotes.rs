@@ -9,10 +9,11 @@ They are presented (to the irc connection) in a `id:range1,range2/id2:range1,..`
 `"Kappa testing Kappa"` would be `25:0-5,14-19`
 */
 
-use crate::twitch::attributes::{Attribution, SeparatorInfo, MsgRange};
+use crate::twitch::attributes::{Attribution, SeparatorInfo, MsgRange, AttributionVec};
+use std::str::FromStr;
 
 /// Emotes.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct Emote {
     /// This emote id, e.g. `Kappa = 25`    
@@ -43,6 +44,16 @@ impl Attribution<usize, MsgRange> for Emote {
     }
 }
 
+impl FromStr for Emote {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        <Emote as Attribution<usize, MsgRange>>::parse(s).ok_or(())
+    }
+}
+
+/// Vector containing emote attribution data.
+pub type EmoteVec = AttributionVec<usize, MsgRange, Emote>;
 
 /// An iterator over emotes
 // #[derive(Debug, Constructor)]
@@ -73,7 +84,7 @@ impl Attribution<usize, MsgRange> for Emote {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::twitch::AttributionVec;
+    use crate::twitch::EmoteVec;
     use std::str::FromStr;
 
     #[test]
@@ -115,7 +126,7 @@ mod tests {
         ];
 
         for (input, expect) in inputs {
-            let emotes = AttributionVec::<_,_,Emote>::from_str(input).unwrap();
+            let emotes = EmoteVec::from_str(input).unwrap();
             assert_eq!(emotes.len(), expect.len());
             assert_eq!(*emotes, *expect);
         }

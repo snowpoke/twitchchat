@@ -1,5 +1,6 @@
-//! Helper functions and a trait for data of a structure similar to Emotes or Flag.
-//! Those structures provide additional information about parts of a message, and conveys them using the range that the information applies to.
+//! Traits and Structs that can be used to process tags that themselves contain lists of information.
+//! Those lists add information or interpretation to messages and senders, and are expressed in somewhat consistent formats.
+
 use std::ops::Range;
 use std::str::FromStr;
 use std::default::Default;

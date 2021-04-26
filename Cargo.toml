@@ -83,10 +83,10 @@ tokio-native-tls = {version = "0.3", optional = true}
 
 # for some test utilities
 async-mutex = {version = "1.4", optional = true}
-derive_more = {version = "0.99.13", default-features = false, features = ["from", "deref", "constructor"]}
+derive_more = {version = "0.99.13", default-features = false, features = ["from", "deref", "constructor", "is_variant"]}
 either = "1.6.1"
-regex = "1.4.5"
 parse-display = "0.4.1"
+regex = "1.4.5"
 
 [dev-dependencies]
 anyhow = "1.0"

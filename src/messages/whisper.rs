@@ -1,6 +1,4 @@
-use crate::twitch::{
-    parse_badges, parse_badges_iter, Badge, BadgeKind, Color, Emote, AttributionVec, MsgRange
-};
+use crate::twitch::{Color, AttributionVec, Attribution, BadgeVec, EmoteVec, FlagVec, Badge};
 use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
 use std::str::FromStr;
 
@@ -30,6 +28,17 @@ impl<'a> Whisper<'a> {
         self.tags().get_parsed("color")
     }
 
+            /// Helper function to return information that can be parsed as AttributionVec. (copied from Privmsg)
+            fn tag_to_attribution_vec<Ref, Attr, T>(&'a self, tag: impl AsRef<str>) -> AttributionVec<Ref, Attr, T> 
+            where
+            Ref: FromStr,
+            Attr: FromStr,
+            T: Attribution<Ref, Attr>,{
+                self.tags().get(tag.as_ref()).map(AttributionVec::<Ref,Attr,T>::from_str)
+                .map(Result::ok).flatten().unwrap_or_else(|| vec![].into())
+            }
+
+            
     /// Returns the display name of the user, if set.
     ///
     /// Users can changed the casing and encoding of their names, if they choose
@@ -44,37 +53,47 @@ impl<'a> Whisper<'a> {
     }
 
     /// Badges attached to this message
-    pub fn badges(&'a self) -> Vec<Badge<'a>> {
-        self.tags()
-            .get("badges")
-            .map(parse_badges)
-            .unwrap_or_default()
+    pub fn badge_info(&'a self) -> BadgeVec {
+        self.tag_to_attribution_vec("badge-info")
     }
+
+    /// Badges attached to this message
+    pub fn badges(&'a self) -> BadgeVec {
+        self.tag_to_attribution_vec("badges")
+    }
+
 
     /// Emotes attached to this message
-    pub fn emotes(&self) -> AttributionVec<usize, MsgRange, Emote> {
-        self.tags()
-            .get("emotes")
-            .map(AttributionVec::<_,_,Emote>::from_str)
-            .map(Result::ok)
-            .flatten()
-            .unwrap_or_default()
+    pub fn emotes(&self) -> EmoteVec {
+        self.tag_to_attribution_vec("emotes")
     }
 
-    /// Whether the user sending this message was a staff member
-    pub fn is_staff(&self) -> bool {
-        self.contains_badge(BadgeKind::Staff)
+    /// Flags attached to this message
+    pub fn flags(&self) -> FlagVec {
+        self.tag_to_attribution_vec("flags")
     }
-
-    /// Whether the user sending this message had turbo
-    pub fn is_turbo(&self) -> bool {
-        self.contains_badge(BadgeKind::Turbo)
-    }
-
-    /// Whether the user sending this message was a global moderator
-    pub fn is_global_moderator(&self) -> bool {
-        self.contains_badge(BadgeKind::GlobalMod)
-    }
+    
+        /// Whether the user sending this message was a staff member
+        pub fn is_staff(&self) -> bool {
+            self.any_badge(Badge::is_staff)
+        }
+    
+        /// Whether the user sending this message had turbo
+        pub fn is_turbo(&self) -> bool {
+            self.any_badge(Badge::is_turbo)
+        }
+    
+        /// Whether the user sending this message was a global moderator
+        pub fn is_global_moderator(&self) -> bool {
+            self.any_badge(Badge::is_global_mod)
+        }
+    
+        /// Helper function that checks if any badge fulfills a specific requirement. Intended to be used with Badge::is_variant functions.
+        fn any_badge(&self, is_badge_fn: impl Fn(&Badge) -> bool) -> bool {
+            self.badges()
+                .iter()
+                .any(is_badge_fn)
+        }
 
     /// The timestamp of when this message was received by Twitch
     pub fn tmi_sent_ts(&self) -> Option<u64> {
@@ -84,14 +103,6 @@ impl<'a> Whisper<'a> {
     /// The id of the user who sent this message
     pub fn user_id(&self) -> Option<u64> {
         self.tags().get_parsed("user-id")
-    }
-
-    fn contains_badge(&self, badge: BadgeKind<'_>) -> bool {
-        self.tags()
-            .get("badges")
-            .into_iter()
-            .flat_map(parse_badges_iter)
-            .any(|x| x.kind == badge)
     }
 }
 

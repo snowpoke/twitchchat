@@ -1,5 +1,6 @@
 use crate::{irc::*, twitch::*, IntoOwned, MaybeOwned, Validator};
-
+use crate::twitch::{AttributionVec, Attribution, BadgeVec};
+use std::str::FromStr;
 /// Sent on successful login, if both **TAGS** and **COMMANDS** capabilities have been sent beforehand.
 ///
 /// # NOTE:
@@ -38,12 +39,19 @@ impl<'a> GlobalUserState<'a> {
             .unwrap_or_else(|| vec!["0"])
     }
 
+    /// Helper function to return information that can be parsed as AttributionVec. (copied from Privmsg)
+    fn tag_to_attribution_vec<Ref, Attr, T>(&'a self, tag: impl AsRef<str>) -> AttributionVec<Ref, Attr, T> 
+    where
+    Ref: FromStr,
+    Attr: FromStr,
+    T: Attribution<Ref, Attr>,{
+        self.tags().get(tag.as_ref()).map(AttributionVec::<Ref,Attr,T>::from_str)
+        .map(Result::ok).flatten().unwrap_or_else(|| vec![].into())
+    }
+
     /// Any badges you have
-    pub fn badges(&self) -> Vec<Badge<'_>> {
-        self.tags()
-            .get("badges")
-            .map(|s| s.split(',').filter_map(Badge::parse).collect())
-            .unwrap_or_default()
+    pub fn badges(&self) -> BadgeVec {
+        self.tag_to_attribution_vec("badges")
     }
 
     /// Your user-id -- only available if you have TAGs enabled
