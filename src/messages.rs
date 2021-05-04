@@ -88,4 +88,6 @@ pub use user_state::UserState;
 mod whisper;
 pub use whisper::Whisper;
 
+mod tags;
+
 pub use crate::irc::IrcMessage;

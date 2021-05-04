@@ -1,24 +1,32 @@
 use crate::irc::tags::ParsedTag;
 use crate::twitch::{Attribution, AttributionVec, BadgeVec, Color, EmoteVec, FlagVec};
-
 use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
+use parse_display::FromStr;
 use std::str::FromStr;
 
 /// A paid subscription ot the channel
 #[non_exhaustive]
-#[derive(Copy, Clone, Debug, PartialEq, Hash)]
+#[derive(Clone, Debug, PartialEq, Hash, FromStr)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
-pub enum SubPlan<'a> {
+pub enum SubPlan {
     /// A `Prime` subscription
     Prime,
+
     /// A Tier-1 subscription (currently $4.99)
+    #[from_str(regex = "1000")]
     Tier1,
+
     /// A Tier-2 subscription (currently $9.99)
+    #[from_str(regex = "2000")]
     Tier2,
+
     /// A Tier-3 subscription (currently $24.99)
+    #[from_str(regex = "3000")]
     Tier3,
+
     /// An unknown tier -- this will catch and future tiers if they are added.
-    Unknown(&'a str),
+    #[display("{0}")]
+    Unknown(String),
 }
 
 /// The kind of notice it was, retrieved via [UserNotice::msg_id()]
@@ -282,14 +290,14 @@ impl<'a> UserNotice<'a> {
     /// Valid values: Prime, 1000, 2000, 3000. 1000, 2000, and
     /// 3000 refer to the first, second, and third levels of paid subscriptions,
     /// respectively (currently $4.99, $9.99, and $24.99).
-    pub fn msg_param_sub_plan(&'a self) -> Option<SubPlan<'a>> {
+    pub fn msg_param_sub_plan(&'a self) -> Option<SubPlan> {
         self.tags().get("msg-param-sub-plan").and_then(|s| {
             match s {
                 "Prime" => SubPlan::Prime,
                 "Tier1" => SubPlan::Tier1,
                 "Tier2" => SubPlan::Tier2,
                 "Tier3" => SubPlan::Tier3,
-                s => SubPlan::Unknown(s),
+                s => SubPlan::Unknown(s.into()),
             }
             .into()
         })

@@ -4,6 +4,8 @@ use crate::twitch::{Badge, BadgeVec, Color, EmoteVec, FlagVec};
 use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
 use std::str::FromStr;
 
+// IDEA: Use tendril crate for parsing
+
 /// Some PRIVMSGs are considered 'CTCP' (client-to-client protocol)
 ///
 /// This is a tag-type for determining what kind of CTCP it was
@@ -203,11 +205,7 @@ impl<'a> Privmsg<'a> {
         self.tags().get("custom-reward-id")
     }
 
-    /// The name of the custom channel reward.
-    ///
-    /// For example, a highlighted message would be `highlighted-message`
-    ///
-    /// **NOTE** From the new community points rewards.
+    /// Specifies messages with a type of highlighting. Like (re)sub messages, activating host mode, or messages highlighted with channel points.
     pub fn msg_id(&self) -> Option<&str> {
         self.tags().get("msg-id")
     }
