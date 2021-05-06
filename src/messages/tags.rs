@@ -27,7 +27,7 @@ init_tags![
     "bits" as u64,
     "color" as Color,
     "display-name",
-    "emote-only",
+    "emote-only" as bool,
     "emote-sets",
     "emotes" as EmoteVec,
     "flags" as FlagVec,

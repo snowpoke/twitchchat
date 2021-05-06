@@ -1,24 +1,47 @@
 use crate::irc::tags::ParsedTag;
 use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
 use crate::messages::tags::HasTags;
-use parse_display::{Display, FromStr};
 use twitchchat_macros::irc_tags;
+use std::time::Duration;
+use pipe_trait::Pipe;
+use wrap_result::WrapOk;
+
 
 /// The parameters for a room being in follower-only mode
-#[derive(Debug, Copy, Clone, PartialEq, Display, FromStr)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
-#[display("{}")]
 pub enum FollowersOnly {
     /// The mode is disabled
-    #[from_str(regex = "-1")]
     Disabled,
     /// All followers are allowed to speak
-    #[from_str(regex = "0")]
     All,
-    /// Only those following for `n` days are allowed to speak
-    #[display("{}({0})")]
-    #[from_str(regex = "(?P<0>[0-9]+)")]
-    Limit(isize),
+    /// Only those following for `n` minutes are allowed to speak
+    Limit(Duration),
+}
+
+// std::time::Duration doesn't implement FromStr, so we can't use parse_display::FromStr
+impl std::str::FromStr for FollowersOnly {
+    type Err = std::num::ParseIntError;
+    fn from_str(s: &str) -> Result<FollowersOnly, Self::Err> {
+        let minutes_to_duration = |x| Duration::from_secs(x*86400);
+        let duration_to_limit = |x| FollowersOnly::Limit(x);
+        match s {
+            "-1" => FollowersOnly::Disabled.wrap_ok(),
+            "0" => FollowersOnly::All.wrap_ok(),
+            s => u64::from_str(s)?.pipe(minutes_to_duration).pipe(duration_to_limit).wrap_ok()
+        }
+    }
+}
+
+impl FollowersOnly {
+    /// Transforms FollowersOnly into an Option containing the time restriction duration.
+    pub fn optional(&self) -> Option<Duration> {
+        match self {
+            Self::Disabled => None,
+            Self::All => Some(Duration::new(0,0)),
+            Self::Limit(duration) => Some(*duration),
+        }
+    }
 }
 
 /// Identifies the channel's chat settings (e.g., slow mode duration).
@@ -112,31 +135,48 @@ serde_struct!(RoomState { raw, tags, channel });
 mod tests {
     use super::*;
     use std::str::FromStr;
+    //use pipe_trait::Pipe;
+    use assert2::assert;
 
     #[test]
     #[cfg(feature = "serde")]
-    fn user_state_serde() {
+    fn room_state_serde() {
         let input = ":tmi.twitch.tv ROOMSTATE #museun\r\n";
         crate::serde::round_trip_json::<RoomState>(input);
         crate::serde::round_trip_rmp::<RoomState>(input);
     }
 
+    /// Tests whether ROOMSTATE messages are parsed into RoomState structs correctly.
     #[test]
-    fn user_state() {
+    fn room_state() {
         let input = ":tmi.twitch.tv ROOMSTATE #museun\r\n";
+
         for msg in parse(input).map(|s| s.unwrap()) {
             let msg = RoomState::from_irc(msg).unwrap();
             assert_eq!(msg.channel(), "#museun");
         }
     }
 
+    /// Tests whether the parts of a full ROOMSTATE message can be accessed as expected. 
+    // #[test]
+    // fn room_state_integrity() {
+    //     let input = "@emote-only=0;followers-only=0;r9k=0;slow=0;subs-only=0 :tmi.twitch.tv ROOMSTATE #dallas\r\n";
+    //     let msg = parse(input).next().unwrap().unwrap().pipe(RoomState::from_irc);
+    //     assert!(msg.emote_only() == false);
+    //     assert!(msg.followers_only() == FollowersOnly::All);
+    //     assert!(msg.r9k() == true);
+    //     assert!(msg.slow() == 0);
+    //     assert!(msg.subs_only() == false);
+    //     assert!(msg.channel() == "#dallas");
+    // }
+
     #[test]
     fn test_followers_only_parsing() {
         const EXPECTED: &[(&str, FollowersOnly)] = &[
             ("-1", FollowersOnly::Disabled),
             ("0", FollowersOnly::All),
-            ("4", FollowersOnly::Limit(4)),
-            ("31415", FollowersOnly::Limit(31415)),
+            ("4", FollowersOnly::Limit(Duration::from_secs(4*86400))),
+            ("31415", FollowersOnly::Limit(Duration::from_secs(31415*86400))),
         ];
 
         EXPECTED
