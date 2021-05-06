@@ -119,6 +119,7 @@ mod tests {
             assert_eq!(cm.channel(), "#dallas");
             assert_eq!(cm.message().unwrap(), "HeyGuys");
             assert_eq!(cm.target_msg_id().unwrap(), "abc-123-def");
+            assert_eq!(cm.login().unwrap(), "ronni");
         }
     }
 }

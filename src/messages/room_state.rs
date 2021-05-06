@@ -148,27 +148,26 @@ mod tests {
 
     /// Tests whether ROOMSTATE messages are parsed into RoomState structs correctly.
     #[test]
-    fn room_state() {
+    fn room_state_stability() {
         let input = ":tmi.twitch.tv ROOMSTATE #museun\r\n";
 
         for msg in parse(input).map(|s| s.unwrap()) {
             let msg = RoomState::from_irc(msg).unwrap();
-            assert_eq!(msg.channel(), "#museun");
         }
     }
 
     /// Tests whether the parts of a full ROOMSTATE message can be accessed as expected. 
-    // #[test]
-    // fn room_state_integrity() {
-    //     let input = "@emote-only=0;followers-only=0;r9k=0;slow=0;subs-only=0 :tmi.twitch.tv ROOMSTATE #dallas\r\n";
-    //     let msg = parse(input).next().unwrap().unwrap().pipe(RoomState::from_irc);
-    //     assert!(msg.emote_only() == false);
-    //     assert!(msg.followers_only() == FollowersOnly::All);
-    //     assert!(msg.r9k() == true);
-    //     assert!(msg.slow() == 0);
-    //     assert!(msg.subs_only() == false);
-    //     assert!(msg.channel() == "#dallas");
-    // }
+    #[test]
+    fn room_state_integrity() {
+        let input = "@emote-only=0;followers-only=0;r9k=0;slow=0;subs-only=0 :tmi.twitch.tv ROOMSTATE #dallas\r\n";
+        let msg = parse(input).next().unwrap().unwrap().pipe(RoomState::from_irc);
+        assert!(msg.emote_only().unwrap() == false);
+        assert!(msg.followers_only().unwrap() == FollowersOnly::All);
+        assert!(msg.r9k().unwrap() == true);
+        assert!(msg.slow().unwrap() == 0);
+        assert!(msg.subs_only().unwrap() == false);
+        assert!(msg.channel().unwrap() == "#dallas");
+    }
 
     #[test]
     fn test_followers_only_parsing() {

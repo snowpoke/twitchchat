@@ -305,6 +305,15 @@ serde_struct!(Privmsg {
 mod tests {
     use super::*;
 
+    macro_rules! emote {
+        ($id:expr, $($r:expr),* $(,)?) => {
+            Emote {
+                id: $id,
+                ranges: vec![$($r.into()),*]
+            }
+        };
+    }
+
     #[test]
     #[cfg(feature = "serde")]
     fn privmsg_serde() {
@@ -322,17 +331,41 @@ mod tests {
     }
 
     #[test]
-    fn privmsg() {
+    fn privmsg_stability() {
         let input = ":test!user@host PRIVMSG #museun :this is a test\r\n";
         for msg in parse(input).map(|s| s.unwrap()) {
             let msg = Privmsg::from_irc(msg).unwrap();
-
-            assert_eq!(msg.name(), "test");
-            assert_eq!(msg.channel(), "#museun");
-            assert_eq!(msg.data(), "this is a test");
-            assert_eq!(msg.ctcp(), None);
         }
     }
+
+    #[test]
+    fn privmsg_integrity() {
+        let input = "@badge-info=;badges=global_mod/1,turbo/1;color=#0D4200;display-name=ronni;emotes=25:0-4,12-16/1902:6-10;id=b34ccfc7-4977-403a-8a94-33c6bac34fb8;mod=0;room-id=1337;subscriber=0;tmi-sent-ts=1507246572675;turbo=1;user-id=1337;user-type=global_mod :ronni!ronni@ronni.tmi.twitch.tv PRIVMSG #ronni :Kappa Keepo Kappa";
+        for msg in parse(input).map(|s| s.unwrap()) {
+            let msg = Privmsg::from_irc(msg).unwrap();
+
+            assert!(msg.name() == "ronni");
+            assert!(msg.channel() == "#ronni");
+            assert!(msg.data() == "Kappa Keepo Kappa");
+            assert!(msg.ctcp() == None);
+
+            assert!(msg.badge_info().unwrap() == vec![]);
+            assert!(msg.badges().unwrap() == vec![Badge::GlobalMod, Badge::Turbo]);
+            assert!(msg.color().unwrap() == "#0D4200".parse().unwrap())
+            assert!(msg.display_name().unwrap() == "ronni")
+            assert!(msg.emotes().unwrap() == vec![emote!(25,(0..4),(12..16)),
+            emote!(1902,(6..10))]);
+            assert!(msg.id().unwrap() == "b34ccfc7-4977-403a-8a94-33c6bac34fb8");
+            assert!(msg.r#mod().unwrap() == true);
+            assert!(msg.room_id().unwrap() == 1337);
+            assert!(msg.subscriber().unwrap() == false);
+            assert!(msg.tmi_sent_ts().unwrap() == 1507246572675);
+            assert!(msg.turbo().unwrap() == true);
+            assert!(msg.user_id().unwrap() == 1337);
+            assert!(msg.user_type().unwrap() == "global_mod");
+        }
+    }
+
 
     #[test]
     fn privmsg_boundary() {

@@ -360,6 +360,8 @@ serde_struct!(UserNotice {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::twitch::Badge;
+    use assert2::assert;
 
     #[test]
     #[cfg(feature = "serde")]
@@ -391,15 +393,46 @@ mod tests {
     }
 
     #[test]
-    fn user_notice() {
+    fn user_notice_stability() {
         let input = ":tmi.twitch.tv USERNOTICE #museun\r\n";
         for msg in parse(input).map(|s| s.unwrap()) {
             let msg = UserNotice::from_irc(msg).unwrap();
-            assert_eq!(msg.channel(), "#museun");
-            assert_eq!(msg.message(), None);
         }
     }
 
+    #[test]
+    fn user_notice_integrity() {
+        let input = "@badge-info=;badges=staff/1,broadcaster/1,turbo/1;color=#008000;display-name=ronni;emotes=;id=db25007f-7a18-43eb-9379-80131e44d633;login=ronni;mod=0;msg-id=resub;msg-param-cumulative-months=6;msg-param-streak-months=2;msg-param-should-share-streak=1;msg-param-sub-plan=Prime;msg-param-sub-plan-name=Prime;room-id=1337;subscriber=1;system-msg=ronni\\shas\\ssubscribed\\sfor\\s6\\smonths!;tmi-sent-ts=1507246572675;turbo=1;user-id=1337;user-type=staff :tmi.twitch.tv USERNOTICE #dallas :Great stream -- keep it up!\r\n";
+
+        for msg in parse(input).map(|s| s.unwrap()) {
+            let msg = UserNotice::from_irc(msg).unwrap();
+
+            assert!(msg.channel() == "#ronni");
+            assert!(msg.message().unwrap() == "Great stream -- keep it up!");
+
+            assert!(msg.badge_info().unwrap() == vec![]);
+            assert!(msg.badges().unwrap() == vec![Badge::Staff, Badge::Broadcaster, Badge::Turbo]);
+            assert!(msg.color().unwrap() == "#008000".parse().unwrap());
+            assert!(msg.display_name().unwrap() == "ronni");
+            assert!(msg.emotes().unwrap() == vec![]);
+            assert!(msg.id().unwrap() == "db25007f-7a18-43eb-9379-80131e44d633");
+            assert!(msg.r#mod().unwrap() == false);
+            assert!(msg.room_id().unwrap() == 1337);
+            assert!(msg.subscriber().unwrap() == true);
+            assert!(msg.tmi_sent_ts().unwrap() == 1507246572675);
+            assert!(msg.turbo().unwrap() == true);
+            assert!(msg.user_id().unwrap() == 1337);
+            assert!(msg.user_type().unwrap() == "staff");
+            assert!(msg.login().unwrap() == "ronni");
+            assert!(msg.msg_id().unwrap() == NoticeType::Resub);
+            assert!(msg.msg_param_cumulative_months().unwrap() == 6);
+            assert!(msg.msg_param_streak_months().unwrap() == 2);
+            assert!(msg.msg_param_should_share_streak().unwrap() == true);
+            assert!(msg.msg_param_sub_plan().unwrap() == SubPlan::Prime);
+            assert!(msg.msg_param_sub_plan_name().unwrap() == "Prime");
+            assert!(msg.system_msg().unwrap() == "ronni has subscribed for 6 months!");
+        }
+    }
     #[test]
     fn user_notice_unknown() {
         let input = "@badge-info=subscriber/8;badges=subscriber/6,bits/100;color=#59517B;display-name=lllAirJordanlll;emotes=;flags=;id=3198b02c-eaf4-4904-9b07-eb1b2b12ba50;login=lllairjordanlll;mod=0;msg-id=resub;msg-param-cumulative-months=8;msg-param-months=0;msg-param-should-share-streak=0;msg-param-sub-plan-name=Channel\\sSubscription\\s(giantwaffle);msg-param-sub-plan=1000;room-id=22552479;subscriber=1;system-msg=lllAirJordanlll\\ssubscribed\\sat\\sTier\\s1.\\sThey\'ve\\ssubscribed\\sfor\\s8\\smonths!;tmi-sent-ts=1580932171144;user-id=44979519;user-type= :tmi.twitch.tv USERNOTICE #giantwaffle\r\n";

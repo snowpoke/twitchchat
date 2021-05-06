@@ -11,6 +11,12 @@ They are presented (to the irc connection) in a `id:range1,range2/id2:range1,..`
 
 use crate::twitch::attributes::{Attribution, AttributionVec, MsgRange, SeparatorInfo};
 use std::str::FromStr;
+use std::collections::HashSet;
+
+
+/// Newtype that describes the emote sets available to a user. 
+pub struct EmoteSet(HashSet<u32>);
+
 
 /// Emotes.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

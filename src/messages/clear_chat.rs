@@ -80,6 +80,8 @@ serde_struct!(ClearChat {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pipe_trait::Pipe;
+    use assert2::assert;
 
     #[test]
     #[cfg(feature = "serde")]
@@ -90,13 +92,21 @@ mod tests {
     }
 
     #[test]
-    fn clear_chat() {
+    fn clear_chat_stability() {
         let input = ":tmi.twitch.tv CLEARCHAT #museun :shaken_bot\r\n";
         for msg in parse(input).map(|s| s.unwrap()) {
             let cc = ClearChat::from_irc(msg).unwrap();
-            assert_eq!(cc.channel(), "#museun");
-            assert_eq!(cc.name().unwrap(), "shaken_bot");
         }
+    }
+
+    /// Tests whether the parts of a full CLEARCHAT message can be accessed as expected. 
+    #[test]
+    fn clear_chat_integrity() {
+        let input = "@ban-duration=60 :tmi.twitch.tv CLEARCHAT #dallas :ronni\r\n";
+        let msg = parse(input).next().unwrap().unwrap().pipe(ClearChat::from_irc).unwrap();
+        assert!(msg.ban_duration().unwrap() == 60);
+        assert!(msg.channel() == "#dallas");
+        assert!(msg.name().unwrap() == "ronni");
     }
 
     #[test]

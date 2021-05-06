@@ -103,6 +103,7 @@ wrap_result = "0.1.1"
 anyhow = "1.0"
 assert2 = "0.3.5"
 async-executor = {version = "1.4", default-features = false}
+maplit = "1.0.2"
 rmp-serde = "0.15.4"
 serde_json = "1.0"
 

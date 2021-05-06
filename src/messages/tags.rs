@@ -11,7 +11,7 @@ target-msg-id: &str to UUID
 emote-sets: Vec<&str> to Vec<u32>
 room-id: u64 to &str */
 use crate::messages::SubPlan;
-use crate::twitch::{BadgeVec, Color, EmoteVec, FlagVec};
+use crate::twitch::{BadgeVec, Color, EmoteVec, FlagVec, EmoteSet};
 use crate::messages::{NoticeType, FollowersOnly};
 use twitchchat_macros::generate_tag_traits as init_tags;
 
@@ -28,7 +28,7 @@ init_tags![
     "color" as Color,
     "display-name",
     "emote-only" as bool,
-    "emote-sets",
+    "emote-sets" as EmoteSet,
     "emotes" as EmoteVec,
     "flags" as FlagVec,
     "followers-only" as FollowersOnly,
