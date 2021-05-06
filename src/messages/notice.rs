@@ -587,7 +587,8 @@ impl<'a> MessageId<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use assert2::assert;
+    
     #[test]
     #[cfg(feature = "serde")]
     fn notice_serde() {
@@ -597,12 +598,23 @@ mod tests {
     }
 
     #[test]
-    fn notice() {
+    fn notice_stability() {
         let input = ":tmi.twitch.tv NOTICE #museun :This room is no longer in slow mode.\r\n";
         for msg in parse(input).map(|s| s.unwrap()) {
             let msg = Notice::from_irc(msg).unwrap();
             assert_eq!(msg.channel(), "#museun");
             assert_eq!(msg.message(), "This room is no longer in slow mode.");
+        }
+    }
+
+    #[test]
+    fn notice_integrity() {
+        let input = "@msg-id=slow_off :tmi.twitch.tv NOTICE #dallas :This room is no longer in slow mode.\r\n";
+        for msg in parse(input).map(|s| s.unwrap()) {
+            let msg = Notice::from_irc(msg).unwrap();
+            assert!(msg.channel() == "#dallas");
+            assert!(msg.message() == "This room is no longer in slow mode.");
+            assert!(msg.msg_id().unwrap() == MessageId::SlowOff);
         }
     }
 }

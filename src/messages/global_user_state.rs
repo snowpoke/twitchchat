@@ -1,6 +1,7 @@
 use crate::twitch::{Attribution, AttributionVec, BadgeVec};
 use crate::{irc::*, twitch::*, IntoOwned, MaybeOwned, Validator};
 use std::str::FromStr;
+
 /// Sent on successful login, if both **TAGS** and **COMMANDS** capabilities have been sent beforehand.
 ///
 /// # NOTE:
@@ -156,6 +157,8 @@ serde_struct!(GlobalUserState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use maplit::hashset;
+    use assert2::assert;
 
     #[test]
     #[cfg(feature = "serde")]
@@ -166,17 +169,22 @@ mod tests {
     }
 
     #[test]
-    fn global_user_state() {
-        let input = "@badge-info=;badges=;color=#FF69B4;display-name=shaken_bot;emote-sets=0;user-id=241015868;user-type= :tmi.twitch.tv GLOBALUSERSTATE\r\n";
+    fn global_user_state_integrity() {
+        let input = "@badge-info=subscriber/8;badges=subscriber/6;color=#0D4200;display-name=dallas;emote-sets=0,33,50,237,793,2126,3517,4578,5569,9400,10337,12239;turbo=0;user-id=1337;user-type=admin :tmi.twitch.tv GLOBALUSERSTATE
+        \r\n";
         for msg in parse(input).map(|s| s.unwrap()) {
             let msg = GlobalUserState::from_irc(msg).unwrap();
-            assert_eq!(msg.user_id().unwrap(), "241015868");
-            assert_eq!(msg.display_name().unwrap(), "shaken_bot");
+            assert!(msg.badge_info().unwrap() == vec![BadgeInfo::NoTierSubscriber(8)]);
+            assert!(msg.badges().unwrap() == vec![Badge::NoTierSubscriber(6)]);
+            let color = "#0D4200".parse().unwrap();
+            assert!(msg.color == color);
+            assert!(msg.color() == color);
+            assert!(msg.display_name().unwrap() == "dallas");
 
-            let color = "#FF69B4".parse().unwrap();
-            assert_eq!(msg.color, color);
-            assert_eq!(msg.color(), color);
-            assert_eq!(msg.emote_sets(), vec!["0"]);
+            assert!(msg.emote_sets().unwrap() == hashset!{0,33,50,237,793,2126,3517,4578,5569,9400,10337,12239});
+            assert!(msg.turbo().unwrap() == false);
+            assert!(msg.user_id().unwrap() == "1337");
+            assert!(msg.user_type().unwrap() == "admin");
         }
     }
 
@@ -188,7 +196,7 @@ mod tests {
             assert!(msg.user_id().is_none());
             assert!(msg.display_name().is_none());
             assert_eq!(msg.color(), crate::twitch::Color::default());
-            assert_eq!(msg.emote_sets(), vec!["0"]);
+            assert_eq!(msg.emote_sets().unwrap(), hashset!{0});
         }
     }
 
