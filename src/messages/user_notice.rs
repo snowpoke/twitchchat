@@ -31,9 +31,10 @@ pub enum SubPlan {
 
 /// The kind of notice it was, retrieved via [UserNotice::msg_id()]
 #[non_exhaustive]
-#[derive(Clone, Debug, PartialEq, Hash)]
+#[derive(Clone, Debug, PartialEq, Hash, FromStr)]
+#[display(style="lowercase")]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
-pub enum NoticeType<'a> {
+pub enum NoticeType {
     /// This was a subscription notice
     Sub,
     /// This was a re-subscription notice
@@ -59,7 +60,8 @@ pub enum NoticeType<'a> {
     /// A the tier that the bits were part of
     BitsBadgeTier,
     /// An unknown notice type (a catch-all)
-    Unknown(&'a str),
+    #[display("{0}")]
+    Unknown(String),
 }
 
 /// Announces Twitch-specific events to the channel (e.g., a user's subscription notification).
@@ -151,24 +153,8 @@ impl<'a> UserNotice<'a> {
     }
 
     /// The kind of notice this message is
-    pub fn msg_id(&'a self) -> Option<NoticeType<'a>> {
-        let kind = self.tags().get("msg-id")?;
-        match kind {
-            "sub" => NoticeType::Sub,
-            "resub" => NoticeType::Resub,
-            "subgift" => NoticeType::SubGift,
-            "anonsubgift" => NoticeType::AnonSubGift,
-            "submysterygift" => NoticeType::SubMysteryGift,
-            "giftpaidupgrade" => NoticeType::GiftPaidUpgrade,
-            "rewardgift" => NoticeType::RewardGift,
-            "anongiftpaidupgrade" => NoticeType::AnonGiftPaidUpgrade,
-            "raid" => NoticeType::Raid,
-            "unraid" => NoticeType::Unraid,
-            "ritual" => NoticeType::Ritual,
-            "bitsbadgetier" => NoticeType::BitsBadgeTier,
-            kind => NoticeType::Unknown(kind),
-        }
-        .into()
+    pub fn msg_id(&'a self) -> Option<ParsedTag<NoticeType>> {
+        self.tags().get_parsed("msg-id")
     }
 
     /// The id of the room for this notice

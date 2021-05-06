@@ -1,6 +1,8 @@
 use crate::irc::tags::ParsedTag;
 use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
+use crate::messages::tags::HasTags;
 use parse_display::{Display, FromStr};
+use twitchchat_macros::irc_tags;
 
 /// The parameters for a room being in follower-only mode
 #[derive(Debug, Copy, Clone, PartialEq, Display, FromStr)]
@@ -20,11 +22,21 @@ pub enum FollowersOnly {
 }
 
 /// Identifies the channel's chat settings (e.g., slow mode duration).
+#[irc_tags["emote-only", "followers-only", "r9k", "slow", "subs-only"]]
 #[derive(Clone, PartialEq)]
 pub struct RoomState<'a> {
     raw: MaybeOwned<'a>,
     tags: TagIndices,
     channel: MaybeOwnedIndex,
+}
+
+impl<'a> HasTags<'a> for RoomState<'a> {
+    fn tags(&'a self) -> Tags<'a>{
+        Tags {
+            data: &self.raw,
+            indices: &self.tags,
+        }
+    }
 }
 
 impl<'a> FromIrcMessage<'a> for RoomState<'a> {
@@ -57,10 +69,11 @@ impl<'a> RoomState<'a> {
         self.tags().get_as_bool("emote-only")
     }
 
-    /// Whether this room is in followers only mode
-    pub fn is_followers_only(&self) -> Option<ParsedTag<FollowersOnly>> {
-        self.tags().get_parsed("followers-only")
-    }
+    //TODO: Bring this method back
+    // /// Whether this room is in followers only mode
+    // pub fn is_followers_only(&self) -> bool {
+    //     !self.followers_only().is_disabled()
+    // }
 
     /// Whether this room is in r9k mode
     pub fn is_r9k(&self) -> bool {
