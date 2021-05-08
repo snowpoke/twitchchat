@@ -32,7 +32,7 @@ pub enum SubPlan {
 /// The kind of notice it was, retrieved via [UserNotice::msg_id()]
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Hash, FromStr)]
-#[display(style="lowercase")]
+#[display(style = "lowercase")]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub enum NoticeType {
     /// This was a subscription notice
@@ -410,25 +410,25 @@ mod tests {
             assert!(msg.channel() == "#ronni");
             assert!(msg.message().unwrap() == "Great stream -- keep it up!");
 
-            assert!(msg.badge_info().unwrap() == vec![]);
-            assert!(msg.badges().unwrap() == vec![Badge::Staff, Badge::Broadcaster, Badge::Turbo]);
-            assert!(msg.color().unwrap() == "#008000".parse().unwrap());
+            assert!(msg.badge_info().unwrap().unwrap() == vec![]);
+            assert!(msg.badges().unwrap().unwrap() == vec![Badge::Staff, Badge::Broadcaster, Badge::Turbo]);
+            assert!(msg.color().unwrap().unwrap() == "#008000".parse().unwrap());
             assert!(msg.display_name().unwrap() == "ronni");
-            assert!(msg.emotes().unwrap() == vec![]);
+            assert!(msg.emotes().unwrap().unwrap() == vec![]);
             assert!(msg.id().unwrap() == "db25007f-7a18-43eb-9379-80131e44d633");
-            assert!(msg.r#mod().unwrap() == false);
-            assert!(msg.room_id().unwrap() == 1337);
-            assert!(msg.subscriber().unwrap() == true);
-            assert!(msg.tmi_sent_ts().unwrap() == 1507246572675);
-            assert!(msg.turbo().unwrap() == true);
-            assert!(msg.user_id().unwrap() == 1337);
+            assert!(msg.r#mod().unwrap().unwrap() == false);
+            assert!(msg.room_id().unwrap().unwrap() == 1337);
+            assert!(msg.subscriber().unwrap().unwrap() == true);
+            assert!(msg.tmi_sent_ts().unwrap().unwrap() == 1507246572675);
+            assert!(msg.turbo().unwrap().unwrap() == true);
+            assert!(msg.user_id().unwrap().unwrap() == 1337);
             assert!(msg.user_type().unwrap() == "staff");
             assert!(msg.login().unwrap() == "ronni");
-            assert!(msg.msg_id().unwrap() == NoticeType::Resub);
-            assert!(msg.msg_param_cumulative_months().unwrap() == 6);
-            assert!(msg.msg_param_streak_months().unwrap() == 2);
-            assert!(msg.msg_param_should_share_streak().unwrap() == true);
-            assert!(msg.msg_param_sub_plan().unwrap() == SubPlan::Prime);
+            assert!(msg.msg_id().unwrap().unwrap() == NoticeType::Resub);
+            assert!(msg.msg_param_cumulative_months().unwrap().unwrap() == 6);
+            assert!(msg.msg_param_streak_months().unwrap().unwrap() == 2);
+            assert!(msg.msg_param_should_share_streak().unwrap().unwrap() == true);
+            assert!(msg.msg_param_sub_plan().unwrap().unwrap() == SubPlan::Prime);
             assert!(msg.msg_param_sub_plan_name().unwrap() == "Prime");
             assert!(msg.system_msg().unwrap() == "ronni has subscribed for 6 months!");
         }

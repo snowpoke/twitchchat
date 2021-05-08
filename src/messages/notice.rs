@@ -588,7 +588,7 @@ impl<'a> MessageId<'a> {
 mod tests {
     use super::*;
     use assert2::assert;
-    
+
     #[test]
     #[cfg(feature = "serde")]
     fn notice_serde() {

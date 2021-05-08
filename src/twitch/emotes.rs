@@ -10,13 +10,25 @@ They are presented (to the irc connection) in a `id:range1,range2/id2:range1,..`
 */
 
 use crate::twitch::attributes::{Attribution, AttributionVec, MsgRange, SeparatorInfo};
-use std::str::FromStr;
+use derive_more::From;
+use shrinkwraprs::Shrinkwrap;
 use std::collections::HashSet;
+use std::str::FromStr;
 
-
-/// Newtype that describes the emote sets available to a user. 
+/// Newtype that describes the emote sets available to a user.
+/// Those emotes are described as a simple list of numbers, like `0,33,50,237,793,2126,3517,4578,5569,9400,10337,12239`.
+#[derive(Shrinkwrap, From, Debug, PartialEq, Clone)]
 pub struct EmoteSet(HashSet<u32>);
 
+impl FromStr for EmoteSet {
+    type Err = <u32 as FromStr>::Err;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.split(',')
+            .map(u32::from_str)
+            .collect::<Result<HashSet<u32>, Self::Err>>()
+            .map(EmoteSet::from)
+    }
+}
 
 /// Emotes.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

@@ -11,7 +11,7 @@ pub use attributes::MsgRange;
 pub(crate) use attributes::{Attribution, AttributionVec};
 
 mod emotes;
-pub use emotes::{Emote, EmoteVec, EmoteSet};
+pub use emotes::{Emote, EmoteSet, EmoteVec};
 
 mod flags;
 pub use flags::{Flag, FlagVec};

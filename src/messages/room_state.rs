@@ -1,11 +1,10 @@
 use crate::irc::tags::ParsedTag;
-use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
 use crate::messages::tags::HasTags;
-use twitchchat_macros::irc_tags;
-use std::time::Duration;
+use crate::{irc::*, MaybeOwned, MaybeOwnedIndex, Validator};
 use pipe_trait::Pipe;
+use std::time::Duration;
+use twitchchat_macros::irc_tags;
 use wrap_result::WrapOk;
-
 
 /// The parameters for a room being in follower-only mode
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -23,12 +22,15 @@ pub enum FollowersOnly {
 impl std::str::FromStr for FollowersOnly {
     type Err = std::num::ParseIntError;
     fn from_str(s: &str) -> Result<FollowersOnly, Self::Err> {
-        let minutes_to_duration = |x| Duration::from_secs(x*86400);
+        let minutes_to_duration = |x| Duration::from_secs(x * 86400);
         let duration_to_limit = |x| FollowersOnly::Limit(x);
         match s {
             "-1" => FollowersOnly::Disabled.wrap_ok(),
             "0" => FollowersOnly::All.wrap_ok(),
-            s => u64::from_str(s)?.pipe(minutes_to_duration).pipe(duration_to_limit).wrap_ok()
+            s => u64::from_str(s)?
+                .pipe(minutes_to_duration)
+                .pipe(duration_to_limit)
+                .wrap_ok(),
         }
     }
 }
@@ -38,7 +40,7 @@ impl FollowersOnly {
     pub fn optional(&self) -> Option<Duration> {
         match self {
             Self::Disabled => None,
-            Self::All => Some(Duration::new(0,0)),
+            Self::All => Some(Duration::new(0, 0)),
             Self::Limit(duration) => Some(*duration),
         }
     }
@@ -54,7 +56,7 @@ pub struct RoomState<'a> {
 }
 
 impl<'a> HasTags<'a> for RoomState<'a> {
-    fn tags(&'a self) -> Tags<'a>{
+    fn tags(&'a self) -> Tags<'a> {
         Tags {
             data: &self.raw,
             indices: &self.tags,
@@ -137,6 +139,7 @@ mod tests {
     use std::str::FromStr;
     //use pipe_trait::Pipe;
     use assert2::assert;
+    use crate::messages::tags::*;
 
     #[test]
     #[cfg(feature = "serde")]
@@ -156,17 +159,23 @@ mod tests {
         }
     }
 
-    /// Tests whether the parts of a full ROOMSTATE message can be accessed as expected. 
+    /// Tests whether the parts of a full ROOMSTATE message can be accessed as expected.
     #[test]
     fn room_state_integrity() {
         let input = "@emote-only=0;followers-only=0;r9k=0;slow=0;subs-only=0 :tmi.twitch.tv ROOMSTATE #dallas\r\n";
-        let msg = parse(input).next().unwrap().unwrap().pipe(RoomState::from_irc);
-        assert!(msg.emote_only().unwrap() == false);
-        assert!(msg.followers_only().unwrap() == FollowersOnly::All);
-        assert!(msg.r9k().unwrap() == true);
-        assert!(msg.slow().unwrap() == 0);
-        assert!(msg.subs_only().unwrap() == false);
-        assert!(msg.channel().unwrap() == "#dallas");
+        let msg = parse(input)
+            .next()
+            .unwrap()
+            .unwrap()
+            .pipe(RoomState::from_irc)
+            .unwrap();
+
+        assert!(msg.emote_only().unwrap().unwrap() == false);
+        assert!(msg.followers_only().unwrap().unwrap() == FollowersOnly::All);
+        assert!(msg.r9k().unwrap().unwrap() == true);
+        assert!(msg.slow().unwrap().unwrap() == 0);
+        assert!(msg.subs_only().unwrap().unwrap() == false);
+        assert!(msg.channel() == "#dallas");
     }
 
     #[test]
@@ -174,8 +183,11 @@ mod tests {
         const EXPECTED: &[(&str, FollowersOnly)] = &[
             ("-1", FollowersOnly::Disabled),
             ("0", FollowersOnly::All),
-            ("4", FollowersOnly::Limit(Duration::from_secs(4*86400))),
-            ("31415", FollowersOnly::Limit(Duration::from_secs(31415*86400))),
+            ("4", FollowersOnly::Limit(Duration::from_secs(4 * 86400))),
+            (
+                "31415",
+                FollowersOnly::Limit(Duration::from_secs(31415 * 86400)),
+            ),
         ];
 
         EXPECTED

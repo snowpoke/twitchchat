@@ -36,7 +36,7 @@ impl<'a> Privmsg<'a> {
     raw!();
     tags!();
     str_field!(
-        /// User who sent this messages
+        /// User who sent this message
         name
     );
     str_field!(
@@ -349,23 +349,23 @@ mod tests {
             assert!(msg.data() == "Kappa Keepo Kappa");
             assert!(msg.ctcp() == None);
 
-            assert!(msg.badge_info().unwrap() == vec![]);
-            assert!(msg.badges().unwrap() == vec![Badge::GlobalMod, Badge::Turbo]);
-            assert!(msg.color().unwrap() == "#0D4200".parse().unwrap())
-            assert!(msg.display_name().unwrap() == "ronni")
-            assert!(msg.emotes().unwrap() == vec![emote!(25,(0..4),(12..16)),
-            emote!(1902,(6..10))]);
+            assert!(msg.badge_info().unwrap().unwrap() == vec![]);
+            assert!(msg.badges().unwrap().unwrap() == vec![Badge::GlobalMod, Badge::Turbo]);
+            assert!(msg.color().unwrap().unwrap() == "#0D4200".parse().unwrap());
+            assert!(msg.display_name().unwrap() == "ronni");
+            assert!(
+                msg.emotes().unwrap().unwrap() == vec![emote!(25, (0..4), (12..16)), emote!(1902, (6..10))]
+            );
             assert!(msg.id().unwrap() == "b34ccfc7-4977-403a-8a94-33c6bac34fb8");
-            assert!(msg.r#mod().unwrap() == true);
-            assert!(msg.room_id().unwrap() == 1337);
-            assert!(msg.subscriber().unwrap() == false);
-            assert!(msg.tmi_sent_ts().unwrap() == 1507246572675);
-            assert!(msg.turbo().unwrap() == true);
-            assert!(msg.user_id().unwrap() == 1337);
+            assert!(msg.r#mod().unwrap().unwrap() == true);
+            assert!(msg.room_id().unwrap().unwrap() == 1337);
+            assert!(msg.subscriber().unwrap().unwrap() == false);
+            assert!(msg.tmi_sent_ts().unwrap().unwrap() == 1507246572675);
+            assert!(msg.turbo().unwrap().unwrap() == true);
+            assert!(msg.user_id().unwrap().unwrap() == 1337);
             assert!(msg.user_type().unwrap() == "global_mod");
         }
     }
-
 
     #[test]
     fn privmsg_boundary() {

@@ -157,8 +157,8 @@ serde_struct!(GlobalUserState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use maplit::hashset;
     use assert2::assert;
+    use maplit::hashset;
 
     #[test]
     #[cfg(feature = "serde")]
@@ -174,16 +174,18 @@ mod tests {
         \r\n";
         for msg in parse(input).map(|s| s.unwrap()) {
             let msg = GlobalUserState::from_irc(msg).unwrap();
-            assert!(msg.badge_info().unwrap() == vec![BadgeInfo::NoTierSubscriber(8)]);
-            assert!(msg.badges().unwrap() == vec![Badge::NoTierSubscriber(6)]);
+            assert!(msg.badge_info().unwrap().unwrap() == vec![BadgeInfo::NoTierSubscriber(8)]);
+            assert!(msg.badges().unwrap().unwrap() == vec![Badge::NoTierSubscriber(6)]);
             let color = "#0D4200".parse().unwrap();
             assert!(msg.color == color);
-            assert!(msg.color() == color);
+            assert!(msg.color().unwrap().unwrap() == color);
             assert!(msg.display_name().unwrap() == "dallas");
 
-            assert!(msg.emote_sets().unwrap() == hashset!{0,33,50,237,793,2126,3517,4578,5569,9400,10337,12239});
-            assert!(msg.turbo().unwrap() == false);
-            assert!(msg.user_id().unwrap() == "1337");
+            assert!(
+                msg.emote_sets().unwrap().unwrap()
+                    == hashset! {0,33,50,237,793,2126,3517,4578,5569,9400,10337,12239});
+            assert!(msg.turbo().unwrap().unwrap() == false);
+            assert!(msg.user_id().unwrap().unwrap() == 1337);
             assert!(msg.user_type().unwrap() == "admin");
         }
     }
@@ -196,7 +198,7 @@ mod tests {
             assert!(msg.user_id().is_none());
             assert!(msg.display_name().is_none());
             assert_eq!(msg.color(), crate::twitch::Color::default());
-            assert_eq!(msg.emote_sets().unwrap(), hashset!{0});
+            assert_eq!(msg.emote_sets().unwrap(), hashset! {0});
         }
     }
 
